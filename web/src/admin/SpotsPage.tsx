@@ -36,15 +36,21 @@ export default function SpotsPage() {
   const [building, setBuilding] = useState('all')
   const [editing, setEditing] = useState<SpotForm | null>(null)
   const [busyId, setBusyId] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const load = useMemo(
     () => async () => {
-      const [spotsRes, usersRes] = await Promise.all([
-        pb.collection('spots').getFullList<SpotRecord>(),
-        pb.collection('users').getFullList<UserRecord>({ filter: 'approved = true' }),
-      ])
-      setSpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
-      setUsers(usersRes)
+      try {
+        const [spotsRes, usersRes] = await Promise.all([
+          pb.collection('spots').getFullList<SpotRecord>(),
+          pb.collection('users').getFullList<UserRecord>({ filter: 'approved = true' }),
+        ])
+        setSpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
+        setUsers(usersRes)
+        setError(null)
+      } catch (err) {
+        setError(pbErrorMessage(err, t) || t('error'))
+      }
     },
     [],
   )
@@ -57,7 +63,7 @@ export default function SpotsPage() {
     return () => {
       active = false
     }
-  }, [load])
+  }, [load, t])
 
   const filtered = useMemo(() => {
     if (!spots) return []
@@ -83,9 +89,19 @@ export default function SpotsPage() {
       notes: form.notes.trim() || undefined,
     }
     if (form.id) {
-      await pb.collection('spots').update(form.id, data)
+      try {
+        await pb.collection('spots').update(form.id, data)
+      } catch (err) {
+        setError(pbErrorMessage(err, t) || t('error'))
+        throw err
+      }
     } else {
-      await pb.collection('spots').create(data)
+      try {
+        await pb.collection('spots').create(data)
+      } catch (err) {
+        setError(pbErrorMessage(err, t) || t('error'))
+        throw err
+      }
     }
     await load()
   }
@@ -96,8 +112,8 @@ export default function SpotsPage() {
     try {
       await pb.collection('spots').delete(spot.id)
       await load()
-    } catch {
-      window.alert(t('error'))
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setBusyId('')
     }

@@ -44,7 +44,7 @@ jobs:
 
       - name: Build & start stack
         run: |
-          docker compose up -d --build
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8080/api/health >/dev/null 2>&1; then break; fi
             sleep 2
@@ -59,7 +59,7 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
 
   docker:
     name: Build & push images

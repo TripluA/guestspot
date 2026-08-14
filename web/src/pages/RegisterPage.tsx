@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Car, CheckCircle2 } from 'lucide-react'
 import { pb } from '../lib/pb'
+import { pbErrorMessage } from '../lib/pbError'
 import { useSession } from '../auth'
 import { Button, Field, Input, Select } from '../components/ui'
 import { setLang } from '../i18n'
@@ -42,30 +43,30 @@ export default function RegisterPage() {
     return Object.keys(e).length === 0
   }
 
-  async function onSubmit(ev: FormEvent) {
-    ev.preventDefault()
-    setApiError('')
-    if (!validate()) return
-    setSubmitting(true)
-    try {
-      await pb.collection('users').create({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        passwordConfirm: form.confirm,
-        building: form.building,
-        apartment: form.apartment.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        language: form.language,
-      })
-      setLang(form.language)
-      setDone(true)
-    } catch (err) {
-      setApiError(err instanceof Error && err.message ? err.message : t('error'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
+   async function onSubmit(ev: FormEvent) {
+     ev.preventDefault()
+     setApiError('')
+     if (!validate()) return
+     setSubmitting(true)
+     try {
+       await pb.collection('users').create({
+         name: form.name.trim(),
+         email: form.email.trim(),
+         password: form.password,
+         passwordConfirm: form.confirm,
+         building: form.building,
+         apartment: form.apartment.trim() || undefined,
+         phone: form.phone.trim() || undefined,
+         language: form.language,
+       })
+       setLang(form.language)
+       setDone(true)
+     } catch (err) {
+       setApiError(pbErrorMessage(err, t) || t('error'))
+     } finally {
+       setSubmitting(false)
+     }
+   }
 
   if (done) {
     return (
@@ -178,12 +179,12 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          {t('registerLogin')}{' '}
-          <Link to="/login" className="font-medium text-teal-700 hover:underline dark:text-teal-300">
-            {t('loginButton')}
-          </Link>
-        </p>
+           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+             {t('registerAlreadyHaveAccount')} {' '}
+             <Link to="/login" className="font-medium text-teal-700 hover:underline dark:text-teal-300">
+               {t('loginButton')}
+             </Link>
+           </p>
       </div>
     </div>
   )

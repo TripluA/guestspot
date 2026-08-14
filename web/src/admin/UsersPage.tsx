@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { pb } from '../lib/pb'
+import { pbErrorMessage } from '../lib/pbError'
 import { Badge, Button, Card, Input, Select, Spinner } from '../components/ui'
 import { fmtDT } from '../lib/format'
 import type { UserRecord } from '../types'
@@ -14,17 +15,22 @@ export default function UsersPage() {
   const [building, setBuilding] = useState('all')
   const [status, setStatus] = useState('all')
   const [busyId, setBusyId] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     ;(async () => {
-      const res = await pb.collection('users').getFullList<UserRecord>({ sort: 'created' })
-      if (active) setUsers(res)
+      try {
+        const res = await pb.collection('users').getFullList<UserRecord>({ sort: 'created' })
+        if (active) setUsers(res)
+      } catch (err) {
+        if (active) setError(pbErrorMessage(err, t) || t('error'))
+      }
     })()
     return () => {
       active = false
     }
-  }, [])
+  }, [t])
 
   const filtered = useMemo(() => {
     if (!users) return []
@@ -44,7 +50,7 @@ export default function UsersPage() {
       await pb.collection('users').update(u.id, { approved: !u.approved })
       setUsers((prev) => prev && prev.map((x) => (x.id === u.id ? { ...x, approved: !u.approved } : x)))
     } catch {
-      window.alert(t('error'))
+      setError(t('error'))
     } finally {
       setBusyId('')
     }
@@ -57,12 +63,13 @@ export default function UsersPage() {
       await pb.collection('users').delete(u.id)
       setUsers((prev) => prev && prev.filter((x) => x.id !== u.id))
     } catch {
-      window.alert(t('error'))
+      setError(t('error'))
     } finally {
       setBusyId('')
     }
   }
 
+  if (error) return <p className="text-red-500">{error}</p>
   if (!users) return <Spinner />
 
   return (

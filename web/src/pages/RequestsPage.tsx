@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus } from 'lucide-react'
 import { pb } from '../lib/pb'
@@ -78,22 +78,25 @@ export default function RequestsPage() {
     }
   }, [refresh])
 
-  const offerable = useMemo(() => {
-    if (!offering || !user) return []
-    const from = offering.from
-    const to = offering.to
-    return mySpots.filter((s) => {
-      if (!s.enabled) return false
-      const conflicted = requests.some(
-        (r) =>
-          r.spot === s.id &&
-          r.status === 'confirmed' &&
-          r.from < to &&
-          r.to > from,
-      )
-      return !conflicted
-    })
-  }, [offering, mySpots, requests, user])
+  const offerableFor = useCallback(
+    (r: GuestRequestRecord) => {
+      if (!user) return []
+      return mySpots.filter((s) => {
+        if (!s.enabled) return false
+        const conflicted = requests.some(
+          (x) =>
+            x.spot === s.id &&
+            x.status === 'confirmed' &&
+            x.from < r.to &&
+            x.to > r.from,
+        )
+        return !conflicted
+      })
+    },
+    [mySpots, requests, user],
+  )
+
+  const offerable = offering ? offerableFor(offering) : []
 
   if (loading || !user) return <Spinner />
 
@@ -133,15 +136,18 @@ export default function RequestsPage() {
       {tab === 'board' ? (
         <div className="space-y-2">
           {requests.length === 0 && <EmptyState title={t('reqEmptyBoard')} />}
-          {requests.map((r) => (
-            <RequestCard
-              key={r.id}
-              r={r}
-              t={t}
-              canOffer={offerable.length > 0 && r.status === 'pending'}
-              onOffer={() => setOffering(r)}
-            />
-          ))}
+          {requests.map((r) => {
+            const available = offerableFor(r)
+            return (
+              <RequestCard
+                key={r.id}
+                r={r}
+                t={t}
+                canOffer={r.status === 'pending' && available.length > 0}
+                onOffer={() => setOffering(r)}
+              />
+            )
+          })}
         </div>
       ) : (
         <div className="space-y-2">

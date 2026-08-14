@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LogOut } from 'lucide-react'
 import { pb } from '../lib/pb'
+import { pbErrorMessage } from '../lib/pbError'
 import { signOut, useSession } from '../auth'
 import { Button, Card, Field, Input, Select } from '../components/ui'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
@@ -24,29 +25,30 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false)
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [pwSent, setPwSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!user) return null
   const u = user
 
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setSaved(false)
-    try {
-      await pb.collection('users').update(u.id, {
-        name: form.name.trim(),
-        apartment: form.apartment.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        language: form.language,
-      })
-      setLang(form.language)
-      setSaved(true)
-    } catch {
-      window.alert(t('error'))
-    } finally {
-      setSaving(false)
-    }
-  }
+   async function save(e: FormEvent) {
+     e.preventDefault()
+     setSaving(true)
+     setSaved(false)
+     try {
+       await pb.collection('users').update(u.id, {
+         name: form.name.trim(),
+         apartment: form.apartment.trim() || undefined,
+         phone: form.phone.trim() || undefined,
+         language: form.language,
+       })
+       setLang(form.language)
+       setSaved(true)
+     } catch (err) {
+       setError(pbErrorMessage(err, t) || t('error'))
+     } finally {
+       setSaving(false)
+     }
+   }
 
   async function resetPassword() {
     try {

@@ -1,4 +1,4 @@
-FROM ghcr.io/muchobien/pocketbase:latest
+FROM ghcr.io/muchobien/pocketbase:0.39.10
 
 # GuestSpot backend image.
 #

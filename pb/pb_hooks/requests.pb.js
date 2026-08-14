@@ -65,10 +65,22 @@ onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth()) {
     h.assertApproved(e.auth)
-    const status = e.record.getString("status")
-    const prev = e.record.original().getString("status")
-    if (status !== prev && status !== "cancelled") {
+    const record = e.record
+    const original = record.original()
+
+    const status = record.getString("status")
+    const prevStatus = original.getString("status")
+    if (status !== prevStatus && status !== "cancelled") {
       throw new ForbiddenError("A request can only be changed to cancelled by its requester.")
+    }
+
+    if (
+      record.getString("from") !== original.getString("from") ||
+      record.getString("to") !== original.getString("to") ||
+      record.getString("spot") !== original.getString("spot") ||
+      record.getString("confirmer") !== original.getString("confirmer")
+    ) {
+      throw new ForbiddenError("Cannot modify request details.")
     }
   }
   e.next()
@@ -78,56 +90,58 @@ onRecordUpdateRequest((e) => {
 
 // Owner offers their spot for a pending request.
 routerAdd("POST", "/api/guestspot/requests/{id}/confirm", (e) => {
-  const h = require(__hooks + "/helpers.js")
-  h.assertApproved(e.auth)
-  const req = e.app.findRecordById("requests", e.request.pathValue("id"))
-  if (req.getString("status") !== "pending") throw new BadRequestError("This request is no longer pending.")
+  return e.app.runInTransaction((tx) => {
+    const h = require(__hooks + "/helpers.js")
+    h.assertApproved(e.auth)
+    const req = tx.findRecordById("requests", e.request.pathValue("id"))
+    if (req.getString("status") !== "pending") throw new BadRequestError("This request is no longer pending.")
 
-  const body = e.requestInfo().body
-  const spotId = body && body["spot"]
-  if (!spotId) throw new BadRequestError("Missing spot.")
+    const body = e.requestInfo().body
+    const spotId = body && body["spot"]
+    if (!spotId) throw new BadRequestError("Missing spot.")
 
-  const spot = e.app.findRecordById("spots", spotId)
-  if (spot.getString("owner") !== e.auth.id) throw new ForbiddenError("You can only offer spots you own.")
-  if (!spot.getBool("enabled")) throw new BadRequestError("This spot is disabled.")
+    const spot = tx.findRecordById("spots", spotId)
+    if (spot.getString("owner") !== e.auth.id) throw new ForbiddenError("You can only offer spots you own.")
+    if (!spot.getBool("enabled")) throw new BadRequestError("This spot is disabled.")
 
-  const from = req.getString("from")
-  const to = req.getString("to")
-  if (h.overlappingConfirmed(e.app, spot.id, from, to).length > 0) {
-    throw new BadRequestError("This spot is already assigned in the requested period.")
-  }
+    const from = req.getString("from")
+    const to = req.getString("to")
+    if (h.overlappingConfirmed(tx, spot.id, from, to).length > 0) {
+      throw new BadRequestError("This spot is already assigned in the requested period.")
+    }
 
-  req.set("status", "confirmed")
-  req.set("spot", spot.id)
-  req.set("confirmer", e.auth.id)
-  e.app.save(req)
+    req.set("status", "confirmed")
+    req.set("spot", spot.id)
+    req.set("confirmer", e.auth.id)
+    tx.save(req)
 
-  const requester = h.loadUser(e.app, req.getString("requester"))
-  const owner = h.loadUser(e.app, e.auth.id)
-  if (requester) {
-    const lang = requester.getString("language") || "en"
-    h.sendMail(
-      requester.getString("email"),
-      h.t(lang, "mail.request_confirmed.subject"),
-      "<p>" + h.t(lang, "mail.request_confirmed.body") + "</p>" +
-      "<p><b>" + h.t(lang, "spot") + ":</b> " + h.esc(spot.getString("number")) +
-      " (" + h.t(lang, "building") + " " + spot.getString("building") + ")</p>" +
-      "<p><b>" + h.t(lang, "owner") + ":</b> " + h.esc(owner ? owner.getString("name") : "") + "</p>" +
-      "<p><b>" + h.fmtRange(from, to) + "</b></p>"
-    )
-  }
-  if (owner) {
-    const olang = owner.getString("language") || "en"
-    h.sendMail(
-      owner.getString("email"),
-      h.t(olang, "mail.you_confirmed.subject"),
-      "<p>" + h.t(olang, "mail.you_confirmed.body") + "</p>" +
-      "<p><b>" + h.t(olang, "guest") + ":</b> " + h.esc(requester ? requester.getString("name") : "") + "</p>" +
-      "<p><b>" + h.fmtRange(from, to) + "</b></p>"
-    )
-  }
+    const requester = h.loadUser(tx, req.getString("requester"))
+    const owner = h.loadUser(tx, e.auth.id)
+    if (requester) {
+      const lang = requester.getString("language") || "en"
+      h.sendMail(
+        requester.getString("email"),
+        h.t(lang, "mail.request_confirmed.subject"),
+        "<p>" + h.t(lang, "mail.request_confirmed.body") + "</p>" +
+        "<p><b>" + h.t(lang, "spot") + ":</b> " + h.esc(spot.getString("number")) +
+        " (" + h.t(lang, "building") + " " + spot.getString("building") + ")</p>" +
+        "<p><b>" + h.t(lang, "owner") + ":</b> " + h.esc(owner ? owner.getString("name") : "") + "</p>" +
+        "<p><b>" + h.fmtRange(from, to) + "</b></p>"
+      )
+    }
+    if (owner) {
+      const olang = owner.getString("language") || "en"
+      h.sendMail(
+        owner.getString("email"),
+        h.t(olang, "mail.you_confirmed.subject"),
+        "<p>" + h.t(olang, "mail.you_confirmed.body") + "</p>" +
+        "<p><b>" + h.t(olang, "guest") + ":</b> " + h.esc(requester ? requester.getString("name") : "") + "</p>" +
+        "<p><b>" + h.fmtRange(from, to) + "</b></p>"
+      )
+    }
 
-  return e.json(200, { success: true, id: req.id, status: "confirmed" })
+    return e.json(200, { success: true, id: req.id, status: "confirmed" })
+  })
 }, $apis.requireAuth("users"))
 
 // Requester cancels their pending/confirmed request.

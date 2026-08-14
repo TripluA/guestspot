@@ -1,11 +1,9 @@
 export default {
-  appName: 'GuestSpot',
   loading: 'Loading…',
   save: 'Save',
   saving: 'Saving…',
   saved: 'Saved',
   cancel: 'Cancel',
-  close: 'Close',
   confirm: 'Confirm',
   back: 'Back',
   error: 'Something went wrong. Please try again.',
@@ -36,7 +34,7 @@ export default {
   registerButton: 'Request access',
   registerSuccess:
     'Registration submitted. You will receive an email once an administrator approves your account.',
-  registerLogin: 'Already have an account? Sign in',
+  registerLogin: 'Already have an account?',
   validationRequired: 'This field is required.',
   validationEmail: 'Enter a valid email address.',
   validationPasswordMismatch: 'Passwords do not match.',
@@ -50,26 +48,19 @@ export default {
   navProfile: 'Profile',
   navAdmin: 'Admin',
   signOut: 'Sign out',
-  themeLabel: 'Theme',
   themeLight: 'Light',
   themeDark: 'Dark',
   themeSystem: 'System',
 
   // dashboard
-  dashTitle: 'Dashboard',
   dashGreeting: 'Hello',
   dashMySpots: 'My spots',
   dashMyRequests: 'My requests',
   dashOpenRequests: 'Open requests on the board',
-  dashActive: 'Active',
   dashPast: 'Past',
-  dashNoSpots: 'You have no spots assigned yet.',
-  dashNoRequests: 'No requests yet. Ask a guest to park!',
   dashNewRequest: 'New request',
   dashSetAvailability: 'Set availability',
-  dashViewBoard: 'View board',
   dashRecent: 'Latest on the board',
-  dashUpcomingAvailability: 'Upcoming availability',
 
   // requests
   reqTitle: 'Requests',
@@ -81,8 +72,6 @@ export default {
   reqGuests: 'Number of guests',
   reqNote: 'Note (optional)',
   reqSubmit: 'Submit request',
-  reqRequester: 'Requester',
-  reqHost: 'Host',
   reqSpot: 'Spot',
   reqOffer: 'Offer spot',
   reqOfferTitle: 'Offer a spot',
@@ -110,7 +99,6 @@ export default {
   spotsCancelAvailability: 'Cancel',
   spotsStatusAvailable: 'Available',
   spotsStatusCancelled: 'Cancelled',
-  spotsAvailabilitySaved: 'Availability added. Owners can now see it.',
   spotsAvailabilityCancelConfirm: 'Cancel this availability window?',
 
   // profile
@@ -129,7 +117,6 @@ export default {
     'We sent you an email with a link to change your password.',
 
   // admin
-  adminTitle: 'Admin',
   adminOverview: 'Overview',
   adminApprovals: 'Approvals',
   adminUsers: 'Users',
@@ -157,11 +144,9 @@ export default {
   adminSpotZone: 'Zone',
   adminSpotEnabled: 'Enabled',
   adminSpotOwner: 'Owner',
-  adminNoOwner: '—',
   adminSearchSpots: 'Search spot or building…',
   adminSave: 'Save',
   adminDeleteSpotConfirm: 'Delete this spot?',
   adminRejectUserConfirm: 'Delete this registration?',
   adminUnassigned: 'Unassigned',
-  adminApprovedNow: 'User approved.',
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { pb } from '../lib/pb'
+import { pbErrorMessage } from '../lib/pbError'
 import { Badge, Button, Card, EmptyState, Spinner } from '../components/ui'
 import { fmtDT } from '../lib/format'
 import type { UserRecord } from '../types'
@@ -9,23 +10,25 @@ export default function ApprovalsPage() {
   const { t } = useTranslation()
   const [users, setUsers] = useState<UserRecord[] | null>(null)
   const [busyId, setBusyId] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    const res = await pb.collection('users').getFullList<UserRecord>({
-      sort: 'created',
-      filter: 'approved = false',
-    })
-    setUsers(res)
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    ;(async () => {
+    try {
       const res = await pb.collection('users').getFullList<UserRecord>({
         sort: 'created',
         filter: 'approved = false',
       })
-      if (active) setUsers(res)
+      setUsers(res)
+      setError(null)
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
+    }
+  }, [t])
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      await refresh()
     })()
     return () => {
       active = false
@@ -38,7 +41,7 @@ export default function ApprovalsPage() {
       await pb.collection('users').update(u.id, { approved: true })
       await refresh()
     } catch {
-      window.alert(t('error'))
+      setError(t('error'))
     } finally {
       setBusyId('')
     }
@@ -51,12 +54,13 @@ export default function ApprovalsPage() {
       await pb.collection('users').delete(u.id)
       await refresh()
     } catch {
-      window.alert(t('error'))
+      setError(t('error'))
     } finally {
       setBusyId('')
     }
   }
 
+  if (error) return <p className="text-red-500">{error}</p>
   if (!users) return <Spinner />
 
   return (

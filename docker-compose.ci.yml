@@ -1,0 +1,10 @@
+# CI-only override: re-adds local build contexts on top of the pull-based
+# docker-compose.yml so the CI smoke job can build and test the current source
+# (published GHCR images only exist after the push job runs).
+services:
+  pb:
+    build:
+      context: ./pb
+  web:
+    build:
+      context: ./web

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Car } from 'lucide-react'
 import { pb } from '../lib/pb'
+import { pbErrorMessage } from '../lib/pbError'
 import { useSession } from '../auth'
 import { Button, Field, Input } from '../components/ui'
 
@@ -21,28 +22,28 @@ export default function LoginPage() {
     return <Navigate to={isAdmin ? '/admin' : '/app'} replace />
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSubmitting(true)
-    try {
-      if (mode === 'user') {
-        await pb.collection('users').authWithPassword(email.trim(), password)
-      } else {
-        await pb.collection('_superusers').authWithPassword(email.trim(), password)
-      }
-      navigate(mode === 'user' ? '/app' : '/admin', { replace: true })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('pending admin approval')) {
-        setError(t('pendingApproval'))
-      } else {
-        setError(t('loginError'))
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
+   async function onSubmit(e: FormEvent) {
+     e.preventDefault()
+     setError('')
+     setSubmitting(true)
+     try {
+       if (mode === 'user') {
+         await pb.collection('users').authWithPassword(email.trim(), password)
+       } else {
+         await pb.collection('_superusers').authWithPassword(email.trim(), password)
+       }
+       navigate(mode === 'user' ? '/app' : '/admin', { replace: true })
+     } catch (err) {
+       const msg = err instanceof Error ? err.message : ''
+       if (msg.includes('pending admin approval')) {
+         setError(t('pendingApproval'))
+       } else {
+         setError(pbErrorMessage(err, t) || t('loginError'))
+       }
+     } finally {
+       setSubmitting(false)
+     }
+   }
 
   return (
     <div className="flex min-h-full items-center justify-center p-4">

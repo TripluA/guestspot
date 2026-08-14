@@ -23,6 +23,11 @@ onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth() && e.auth) {
     h.assertApproved(e.auth)
+    const spotId = e.record.getString("spot")
+    const spot = e.app.findRecordById("spots", spotId)
+    if (spot.getString("owner") !== e.auth.id) {
+      throw new ForbiddenError("You can only manage availability for spots you own.")
+    }
   }
   const err = h.rangeError(e.record.getString("from"), e.record.getString("to"))
   if (err) throw new BadRequestError(err)

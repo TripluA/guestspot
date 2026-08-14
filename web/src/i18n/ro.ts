@@ -1,11 +1,9 @@
 export default {
-  appName: 'GuestSpot',
   loading: 'Se încarcă…',
   save: 'Salvează',
   saving: 'Se salvează…',
   saved: 'Salvat',
   cancel: 'Anulează',
-  close: 'Închide',
   confirm: 'Confirmă',
   back: 'Înapoi',
   error: 'Ceva nu a mers bine. Încearcă din nou.',
@@ -36,7 +34,7 @@ export default {
   registerButton: 'Solicită acces',
   registerSuccess:
     'Înregistrarea a fost trimisă. Vei primi un email imediat ce administratorul aprobă contul.',
-  registerLogin: 'Ai deja cont? Autentifică-te',
+  registerLogin: 'Ai deja cont?',
   validationRequired: 'Acest câmp este obligatoriu.',
   validationEmail: 'Introdu o adresă de email validă.',
   validationPasswordMismatch: 'Parolele nu coincid.',
@@ -50,26 +48,19 @@ export default {
   navProfile: 'Profil',
   navAdmin: 'Admin',
   signOut: 'Deconectare',
-  themeLabel: 'Temă',
   themeLight: 'Luminos',
   themeDark: 'Întunecat',
   themeSystem: 'Sistem',
 
   // dashboard
-  dashTitle: 'Acasă',
   dashGreeting: 'Bună',
   dashMySpots: 'Locurile mele',
   dashMyRequests: 'Cererile mele',
   dashOpenRequests: 'Cereri deschise pe panou',
-  dashActive: 'Active',
   dashPast: 'Trecute',
-  dashNoSpots: 'Încă nu ai locuri atribuite.',
-  dashNoRequests: 'Nicio cerere deocamdată. Solicită un loc pentru un oaspete!',
   dashNewRequest: 'Cerere nouă',
   dashSetAvailability: 'Setează disponibilitate',
-  dashViewBoard: 'Vezi panoul',
   dashRecent: 'Ultimele de pe panou',
-  dashUpcomingAvailability: 'Disponibilitate viitoare',
 
   // requests
   reqTitle: 'Cereri',
@@ -81,8 +72,6 @@ export default {
   reqGuests: 'Număr de oaspeți',
   reqNote: 'Notă (opțional)',
   reqSubmit: 'Trimite cererea',
-  reqRequester: 'Solicitant',
-  reqHost: 'Gazdă',
   reqSpot: 'Loc',
   reqOffer: 'Oferă loc',
   reqOfferTitle: 'Oferă un loc',
@@ -110,7 +99,6 @@ export default {
   spotsCancelAvailability: 'Anulează',
   spotsStatusAvailable: 'Disponibil',
   spotsStatusCancelled: 'Anulat',
-  spotsAvailabilitySaved: 'Disponibilitate adăugată. Acum proprietarii o pot vedea.',
   spotsAvailabilityCancelConfirm: 'Anulezi această perioadă de disponibilitate?',
 
   // profile
@@ -129,7 +117,6 @@ export default {
     'Ți-am trimis un email cu un link pentru schimbarea parolei.',
 
   // admin
-  adminTitle: 'Admin',
   adminOverview: 'Prezentare',
   adminApprovals: 'Aprobări',
   adminUsers: 'Utilizatori',
@@ -157,11 +144,9 @@ export default {
   adminSpotZone: 'Zonă',
   adminSpotEnabled: 'Activat',
   adminSpotOwner: 'Proprietar',
-  adminNoOwner: '—',
   adminSearchSpots: 'Caută loc sau bloc…',
   adminSave: 'Salvează',
   adminDeleteSpotConfirm: 'Ștergi acest loc?',
   adminRejectUserConfirm: 'Ștergi această înregistrare?',
   adminUnassigned: 'Neatribuit',
-  adminApprovedNow: 'Utilizator aprobat.',
 }
