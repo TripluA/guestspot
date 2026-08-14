@@ -9,10 +9,12 @@ Self-hosted guest parking for HOAs (Homeowner Associations). Neighbours request 
 ## Quick start
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 Then open `http://localhost:8080` (port configurable via `WEB_PORT`).
+
+> The stack runs the images published to GHCR by CI on `main`. On a fresh host run `docker compose pull` first (or set `GUESTSPOT_TAG` to a `v*` release). If the GHCR packages are private, log in once: `docker login ghcr.io`.
 
 On every boot the backend creates/updates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. If a `.env` file exists, its values override the compose defaults — sign in with **those** values. The admin panel lives at `http://localhost:8080/_/` (or use the **Admin** tab on the `/login` page).
 
@@ -32,7 +34,7 @@ Copy `.env.example` to `.env` and adjust. Placeholder values like `CHANGE_ME_STR
 | `WEB_PORT` | Host port for the web UI | `8080` |
 | `GUESTSPOT_TAG` | Image tag to pull/run | `latest` |
 
-`docker compose pull` after a release pulls the published images instead of building locally.
+`docker compose pull` pulls the published images — the compose file has no local build contexts; images are built and pushed by CI on `main`.
 
 To change the admin password, edit `PB_ADMIN_PASSWORD` in `.env` and run `docker compose up -d` — the superuser is upserted on every boot, so the new password applies immediately.
 
