@@ -274,6 +274,7 @@ function NewRequestModal({
   const [submitting, setSubmitting] = useState(false)
 
   async function submit() {
+    console.log('[NewRequestModal] submit clicked')
     setError('')
     if (!from || !to || to <= from) {
       setError(t('validationRequired'))
@@ -281,15 +282,18 @@ function NewRequestModal({
     }
     setSubmitting(true)
     try {
+      console.log('[NewRequestModal] creating request', { from, to, guests, note })
       await pb.collection('requests').create({
         from: toPbDate(from),
         to: toPbDate(to),
         guests: Number(guests) || undefined,
         note: note.trim() || undefined,
       })
+      console.log('[NewRequestModal] request created')
       onDone()
       onClose()
     } catch (err) {
+      console.error('[NewRequestModal] error', err)
       setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setSubmitting(false)
