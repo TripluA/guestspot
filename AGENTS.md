@@ -36,24 +36,7 @@ contexts for the CI smoke job.
 
 ## Current work plan (started 2026-08-14) — check git log before assuming done
 
-If any of these show no corresponding commit, they are still open:
-
-- B1: CI smoke broken after build-context removal — must use the
-  `docker-compose.ci.yml` override in `.github/workflows/ci.yml:47`.
-- B2: "Offer spot" button never renders — `offerable` in
-  `web/src/pages/RequestsPage.tsx` is gated on `offering` (always empty until
-  the button is clicked). Compute offerable per request.
-- B3: requester can PATCH `from/to/spot/confirmer` on own requests —
-  `pb/pb_hooks/requests.pb.js` update hook only guards `status`.
-- B4: availability update doesn't re-verify spot ownership —
-  `pb/pb_hooks/availability.pb.js` update hook.
-- R1: confirm route is not atomic (check-then-save) — wrap in
-  `e.app.runInTransaction`.
-- R2: dangling refs on delete — add cleanup hook: user delete clears
-  `spots.owner` + `requests.confirmer`; spot delete clears `requests.spot`.
-- R3: no error states on page loads (Overview/Approvals/Users/Spots) —
-  infinite Spinner on PB failure.
-- R4: `web/.dockerignore` missing; `npm ci || npm install` should be `npm ci`.
-- P1: 16 unused i18n keys in en.ts/ro.ts.
-- P2: pin `ghcr.io/muchobien/pocketbase` to `0.39.10` (not `latest`).
-- P3: `registerLogin` wording ("Already have an account? Sign in").
+- All tasks from the initial work plan completed:
+  - B1 (CI smoke), B2 (Offerable compute), B3 (Guard requests), B4 (Availability verification)
+  - R1 (Atomic confirm), R2 (Cleanup hooks), R3 (Error states), R4 (Dockerignore/npm ci)
+  - P1 (Unused i18n keys), P2 (Pin PB image), P3 (Register wording)
