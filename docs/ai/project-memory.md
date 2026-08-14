@@ -2,7 +2,7 @@
 
 Human-readable OpenMembrain project memory export.
 
-Project: guestspot3
+Project: guestspot
 Generated: 2026-08-14T08:10:02.082Z
 
 ## Using OpenMemBrain
