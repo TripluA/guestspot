@@ -65,22 +65,10 @@ onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth()) {
     h.assertApproved(e.auth)
-    const record = e.record
-    const original = record.original()
-
-    const status = record.getString("status")
-    const prevStatus = original.getString("status")
-    if (status !== prevStatus && status !== "cancelled") {
+    const status = e.record.getString("status")
+    const prev = e.record.original().getString("status")
+    if (status !== prev && status !== "cancelled") {
       throw new ForbiddenError("A request can only be changed to cancelled by its requester.")
-    }
-
-    if (
-      record.getString("from") !== original.getString("from") ||
-      record.getString("to") !== original.getString("to") ||
-      record.getString("spot") !== original.getString("spot") ||
-      record.getString("confirmer") !== original.getString("confirmer")
-    ) {
-      throw new ForbiddenError("Cannot modify request details.")
     }
   }
   e.next()

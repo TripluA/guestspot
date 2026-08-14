@@ -105,6 +105,7 @@ export default function ProfilePage() {
             </Select>
           </Field>
           {saved && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button type="submit" loading={saving} className="w-full">
             {t('profileSave')}
           </Button>

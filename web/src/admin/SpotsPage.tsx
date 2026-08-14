@@ -148,6 +148,8 @@ export default function SpotsPage() {
         </Select>
       </div>
 
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
+
       {filtered.length === 0 && <Card><p className="py-6 text-center text-gray-400">{t('noData')}</p></Card>}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

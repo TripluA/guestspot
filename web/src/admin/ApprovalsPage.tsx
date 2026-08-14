@@ -26,13 +26,7 @@ export default function ApprovalsPage() {
   }, [t])
 
   useEffect(() => {
-    let active = true
-    ;(async () => {
-      await refresh()
-    })()
-    return () => {
-      active = false
-    }
+    void refresh()
   }, [refresh])
 
   async function approve(u: UserRecord) {

@@ -1,6 +1,6 @@
 // Cleanup dangling references: user/spot delete.
 
-onRecordAfterDeleteRequest((e) => {
+onRecordAfterDeleteSuccess((e) => {
   const userId = e.record.id
   // Clear spots.owner
   const spots = e.app.findRecordsByFilter("spots", `owner = "${userId}"`)
@@ -17,7 +17,7 @@ onRecordAfterDeleteRequest((e) => {
   e.next()
 }, "users")
 
-onRecordAfterDeleteRequest((e) => {
+onRecordAfterDeleteSuccess((e) => {
   const spotId = e.record.id
   // Clear requests.spot
   const requests = e.app.findRecordsByFilter("requests", `spot = "${spotId}"`)

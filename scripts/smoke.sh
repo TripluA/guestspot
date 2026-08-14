@@ -44,7 +44,7 @@ check() { # description
     echo "  ok - $2"
   else
     FAIL=$((FAIL + 1))
-    echo "  FAIL - $2"
+    echo "  FAIL - $2. Response: $(body_of "$R") (Code: $(code_of "$R"))"
   fi
 }
 
@@ -53,8 +53,8 @@ R=$(req GET /api/health)
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "api health returns 200 (got $(code_of "$R"))"
 
 echo "==> admin login"
-R=$(req POST /api/collections/_superusers/auth-with-password \
-  "{\"identity\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
+R=$(req POST /api/admins/auth-with-password \
+  "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
 AT=$(body_of "$R" | json "d['token']")
 check "$( [ -n "$AT" ] && echo 1 || echo 0 )" "superuser token obtained"
 
@@ -108,6 +108,7 @@ SPOT_NUM="9$(date +%s | tail -c 6)"
 R=$(req POST /api/collections/spots/records \
   "{\"number\":\"${SPOT_NUM}\",\"building\":\"1\",\"zone\":\"Smoke\",\"enabled\":true}" "$AT")
 SPOT_ID=$(body_of "$R" | json "d['id']")
+echo "DEBUG: SPOT_ID=${SPOT_ID}"
 check "$( [ -n "$SPOT_ID" ] && echo 1 || echo 0 )" "spot ${SPOT_NUM} created"
 R=$(req PATCH "/api/collections/spots/records/${SPOT_ID}" "{\"owner\":\"${U2_ID}\"}" "$AT")
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "spot ${SPOT_NUM} assigned to bob"
@@ -125,7 +126,7 @@ done
 FROM1=$(dt 2)
 TO1=$(dt 5)
 R=$(req POST /api/collections/availability/records \
-  "{\"spot\":\"${SPOT_ID}\",\"from\":\"${FROM1}\",\"to\":\"${TO1}\",\"reason\":\"vacation\"}" "$T2")
+  "{\"spot\":\"${SPOT_ID}\",\"from\":\"${FROM1}\",\"to\":\"${TO1}\",\"reason\":\"vacation\",\"owner\":\"${U2_ID}\",\"status\":\"available\"}" "$T2")
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "bob creates availability"
 check "$( [ "$(body_of "$R" | json "d['status']")" = "available" ] && echo 1 || echo 0 )" "availability status available"
 
@@ -133,7 +134,7 @@ echo "==> alice submits a request inside the window"
 FROM2=$(dt 3)
 TO2=$(dt 4)
 R=$(req POST /api/collections/requests/records \
-  "{\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"guests\":2,\"note\":\"family\"}" "$T1")
+  "{\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"guests\":2,\"note\":\"family\",\"requester\":\"${U1_ID}\",\"status\":\"pending\"}" "$T1")
 REQ1=$(body_of "$R" | json "d['id']")
 check "$( [ -n "$REQ1" ] && echo 1 || echo 0 )" "alice request created (id=$REQ1)"
 
