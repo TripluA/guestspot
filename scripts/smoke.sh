@@ -53,8 +53,8 @@ R=$(req GET /api/health)
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "api health returns 200 (got $(code_of "$R"))"
 
 echo "==> admin login"
-R=$(req POST /api/admins/auth-with-password \
-  "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
+R=$(req POST /api/collections/_superusers/auth-with-password \
+  "{\"identity\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}")
 AT=$(body_of "$R" | json "d['token']")
 check "$( [ -n "$AT" ] && echo 1 || echo 0 )" "superuser token obtained"
 
