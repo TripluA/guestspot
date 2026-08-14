@@ -7,7 +7,7 @@ services:
       context: ./pb
     restart: unless-stopped
     volumes:
-      - pb_data:/pb_data
+      - ./pb_data:/pb_data
     environment:
       PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@example.com}
       PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-change-me}
@@ -47,6 +47,3 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
-
-volumes:
-  pb_data:
