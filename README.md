@@ -14,15 +14,17 @@ docker compose up -d --build
 
 Then open `http://localhost:8080` (port configurable via `WEB_PORT`).
 
-On first boot the backend creates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. The admin panel lives at `http://localhost:8080/_/`.
+On every boot the backend creates/updates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. If a `.env` file exists, its values override the compose defaults — sign in with **those** values. The admin panel lives at `http://localhost:8080/_/` (or use the **Admin** tab on the `/login` page).
+
+> The admin superuser is not a regular account: `admin@example.com` only works on the **Admin** login tab, never the **Resident** tab. Residents register themselves and an admin approves them.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and adjust. All variables have safe inline defaults in `docker-compose.yml`:
+Copy `.env.example` to `.env` and adjust. Placeholder values like `CHANGE_ME_STRONG_PASSWORD` are examples, not defaults — always set a real password. All variables have safe inline defaults in `docker-compose.yml`:
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | Admin superuser, auto-created on first boot | `admin@example.com` / `change-me` |
+| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | Admin superuser, created/updated on every boot | `admin@example.com` / `change-me` (fallback when unset; a `.env` file always overrides) |
 | `PUBLIC_URL` | Public app URL, used in email links | `http://localhost:8080` |
 | `MAIL_FROM` / `MAIL_SENDER_NAME` | Sender for notification emails | `GuestSpot <noreply@example.com>` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_TLS` / `SMTP_AUTH_METHOD` | SMTP for transactional emails (empty host disables email) | empty / `587` / `false` / `PLAIN` |
@@ -31,6 +33,8 @@ Copy `.env.example` to `.env` and adjust. All variables have safe inline default
 | `GUESTSPOT_TAG` | Image tag to pull/run | `latest` |
 
 `docker compose pull` after a release pulls the published images instead of building locally.
+
+To change the admin password, edit `PB_ADMIN_PASSWORD` in `.env` and run `docker compose up -d` — the superuser is upserted on every boot, so the new password applies immediately.
 
 ## Workflows
 
@@ -54,7 +58,7 @@ The PocketBase hooks/migrations live in `pb/pb_hooks` and `pb/pb_migrations` and
 
 ## Testing
 
-`scripts/smoke.sh` runs an end-to-end check against a running stack: health, admin login, collections, spot seed, registration → approval → login flow, request/confirm/conflict/complete flows.
+`scripts/smoke.sh` runs an end-to-end check against a running stack: health, admin login, collections, spot seed, registration → approval → login flow, request/confirm/conflict/complete flows. It defaults to `admin@example.com` / `change-me`; export `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` from your `.env` if you override them there.
 
 ## Project layout
 
