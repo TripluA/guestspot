@@ -1,0 +1,52 @@
+name: guestspot
+
+services:
+  pb:
+    image: ghcr.io/triplua/guestspot-pb:${GUESTSPOT_TAG:-latest}
+    build:
+      context: ./pb
+    restart: unless-stopped
+    volumes:
+      - pb_data:/pb_data
+    environment:
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@example.com}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-change-me}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MAIL_FROM: ${MAIL_FROM:-GuestSpot <noreply@example.com>}
+      MAIL_SENDER_NAME: ${MAIL_SENDER_NAME:-GuestSpot}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_AUTH_METHOD: ${SMTP_AUTH_METHOD:-PLAIN}
+      ADMIN_NOTIFY_EMAILS: ${ADMIN_NOTIFY_EMAILS:-}
+      TZ: ${TZ:-Europe/Bucharest}
+    ports:
+      - "127.0.0.1:8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8090/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  web:
+    image: ghcr.io/triplua/guestspot-web:${GUESTSPOT_TAG:-latest}
+    build:
+      context: ./web
+    restart: unless-stopped
+    depends_on:
+      pb:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  pb_data:

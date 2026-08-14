@@ -1,0 +1,8 @@
+# Docker build contexts are per-service (./pb and ./web), but this
+# guards against accidental leakage from the root when contexts change.
+pb_data/
+node_modules/
+web/dist/
+.git/
+*.md
+.github/
