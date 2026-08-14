@@ -18,3 +18,6 @@ web/.vite/
 
 # Browser automation artifacts
 .playwright-mcp/
+
+# AI memory runtime state (generated project-memory docs are committed under docs/ai/)
+.openmembrain/
