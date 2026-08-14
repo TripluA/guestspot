@@ -153,6 +153,7 @@ export default {
   adminAddSpot: 'Add spot',
   adminEditSpot: 'Edit spot',
   adminSpotNumber: 'Spot number',
+  adminSpotNumberExists: 'A spot with this number already exists.',
   adminSpotZone: 'Zone',
   adminSpotEnabled: 'Enabled',
   adminSpotOwner: 'Owner',

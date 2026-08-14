@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { cmpSpotNumber } from '../lib/format'
+import { pbErrorMessage } from '../lib/pbError'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import type { SpotRecord, UserRecord } from '../types'
 
@@ -69,8 +70,12 @@ export default function SpotsPage() {
   }, [spots, query, building])
 
   async function save(form: SpotForm) {
+    const number = form.number.trim()
+    if (spots?.some((s) => s.number === number && s.id !== form.id)) {
+      throw new Error(t('adminSpotNumberExists'))
+    }
     const data = {
-      number: form.number.trim(),
+      number,
       building: form.building,
       zone: form.zone.trim() || undefined,
       enabled: form.enabled,
@@ -214,7 +219,7 @@ function SpotModal({
     try {
       await onSaved(f)
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('error'))
+      setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setSaving(false)
     }

@@ -14,6 +14,7 @@ import {
   Spinner,
 } from '../components/ui'
 import { fmtRange, isPast, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
+import { pbErrorMessage } from '../lib/pbError'
 import type { AvailabilityRecord, SpotRecord } from '../types'
 
 export default function MySpotsPage() {
@@ -208,7 +209,7 @@ function AddAvailabilityModal({
       onDone()
       onClose()
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('error'))
+      setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setSubmitting(false)
     }

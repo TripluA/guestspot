@@ -153,6 +153,7 @@ export default {
   adminAddSpot: 'Adaugă loc',
   adminEditSpot: 'Editează loc',
   adminSpotNumber: 'Număr loc',
+  adminSpotNumberExists: 'Există deja un loc cu acest număr.',
   adminSpotZone: 'Zonă',
   adminSpotEnabled: 'Activat',
   adminSpotOwner: 'Proprietar',

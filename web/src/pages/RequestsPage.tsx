@@ -17,6 +17,7 @@ import {
   cn,
 } from '../components/ui'
 import { fmtRange, fmtDT, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
+import { pbErrorMessage } from '../lib/pbError'
 import type { GuestRequestRecord, SpotRecord } from '../types'
 
 const statusKey = (s: string) => 'reqStatus' + s.charAt(0).toUpperCase() + s.slice(1)
@@ -283,7 +284,7 @@ function NewRequestModal({
       onDone()
       onClose()
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('error'))
+      setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setSubmitting(false)
     }
@@ -363,7 +364,7 @@ function OfferModal({
       })
       onDone()
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : t('reqOfferError'))
+      setError(pbErrorMessage(err, t) || t('reqOfferError'))
     } finally {
       setSubmitting(false)
     }
