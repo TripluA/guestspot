@@ -82,13 +82,21 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
+      - name: Docker metadata (backend)
+        id: meta-pb
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.IMAGE_PREFIX }}-pb
-            ${{ env.IMAGE_PREFIX }}-web
+          images: ${{ env.IMAGE_PREFIX }}-pb
+          tags: |
+            type=sha
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Docker metadata (frontend)
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-web
           tags: |
             type=sha
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -101,8 +109,8 @@ jobs:
           file: ./pb/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-pb.outputs.tags }}
+          labels: ${{ steps.meta-pb.outputs.labels }}
 
       - name: Build & push frontend
         # Web image is amd64-only: the node:22-alpine build crashes under QEMU
@@ -114,5 +122,5 @@ jobs:
           file: ./web/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
