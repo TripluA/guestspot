@@ -57,6 +57,7 @@ onRecordAfterCreateSuccess((e) => {
       "<p><a href='" + h.appURL() + "/app/requests'>" + h.t(olang, "mail.open_app") + "</a></p>"
     )
   }
+  e.next()
 }, "requests")
 
 // --- update: only the requester may cancel; everything else is guarded. ---

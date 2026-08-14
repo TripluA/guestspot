@@ -16,7 +16,7 @@ onRecordAfterCreateSuccess((e) => {
   const h = require(__hooks + "/helpers.js")
   const u = e.record
   const recipients = h.adminNotifyEmails()
-  if (recipients.length === 0) return
+  if (recipients.length === 0) return e.next()
   const html =
     "<p>A new user registered and is waiting for approval:</p>" +
     "<p><b>Name:</b> " + h.esc(u.getString("name")) + "<br/>" +
@@ -28,6 +28,7 @@ onRecordAfterCreateSuccess((e) => {
   for (let i = 0; i < recipients.length; i++) {
     h.sendMail(recipients[i], "[GuestSpot] New registration pending approval", html)
   }
+  e.next()
 }, "users")
 
 // When an admin flips a user to approved, welcome them.
@@ -83,4 +84,5 @@ onRecordEnrich((e) => {
       e.record.hide("phone")
     }
   }
+  e.next()
 })
