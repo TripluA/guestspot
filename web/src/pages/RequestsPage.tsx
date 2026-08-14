@@ -16,7 +16,7 @@ import {
   StatusBadge,
   cn,
 } from '../components/ui'
-import { fmtRange, fmtDT, localNowOffset, toPbDate } from '../lib/format'
+import { fmtRange, fmtDT, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
 import type { GuestRequestRecord, SpotRecord } from '../types'
 
 const statusKey = (s: string) => 'reqStatus' + s.charAt(0).toUpperCase() + s.slice(1)
@@ -53,7 +53,7 @@ export default function RequestsPage() {
     ])
     setRequests(boardRes)
     setMine(mineRes)
-    setMySpots(spotsRes)
+    setMySpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
   }, [user])
 
   useEffect(() => {

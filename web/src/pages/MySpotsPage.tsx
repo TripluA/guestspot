@@ -13,7 +13,7 @@ import {
   Modal,
   Spinner,
 } from '../components/ui'
-import { fmtRange, isPast, localNowOffset, toPbDate } from '../lib/format'
+import { fmtRange, isPast, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
 import type { AvailabilityRecord, SpotRecord } from '../types'
 
 export default function MySpotsPage() {
@@ -37,7 +37,7 @@ export default function MySpotsPage() {
         filter: `owner = "${user.id}"`,
       }),
     ])
-    setSpots(spotsRes)
+    setSpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
     setAvailability(availRes)
   }, [user])
 

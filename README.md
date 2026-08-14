@@ -58,7 +58,7 @@ The PocketBase hooks/migrations live in `pb/pb_hooks` and `pb/pb_migrations` and
 
 ## Testing
 
-`scripts/smoke.sh` runs an end-to-end check against a running stack: health, admin login, collections, spot seed, registration → approval → login flow, request/confirm/conflict/complete flows. It defaults to `admin@example.com` / `change-me`; export `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` from your `.env` if you override them there.
+`scripts/smoke.sh` runs an end-to-end check against a running stack: health, admin login, collections, spot creation, registration → approval → login flow, request/confirm/conflict/complete flows. It defaults to `admin@example.com` / `change-me`; export `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` from your `.env` if you override them there.
 
 ## Project layout
 

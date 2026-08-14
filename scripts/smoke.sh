@@ -64,9 +64,9 @@ for c in users spots availability requests; do
   check "$( body_of "$R" | grep -q "\"name\":\"${c}\"" && echo 1 || echo 0 )" "collection '${c}' exists"
 done
 
-echo "==> spots seeded"
-R=$(req GET /api/collections/spots/records?perPage=1 "" "$AT")
-check "$( [ "$(body_of "$R" | json "d['totalItems']")" = "304" ] && echo 1 || echo 0 )" "304 seeded spots"
+echo "==> spots collection queryable"
+R=$(req GET '/api/collections/spots/records?perPage=1' "" "$AT")
+check "$( [ "$(body_of "$R" | json "d['totalItems']")" -ge 0 ] 2>/dev/null && echo 1 || echo 0 )" "spots collection queryable"
 
 echo "==> register two users"
 TS=$(date +%s)
@@ -103,10 +103,12 @@ R=$(req POST /api/collections/users/auth-with-password \
 T2=$(body_of "$R" | json "d['token']")
 check "$( [ -n "$T2" ] && echo 1 || echo 0 )" "bob token obtained"
 
-echo "==> assign a spot to bob (owner)"
-R=$(req GET '/api/collections/spots/records?perPage=1&sort=number' "" "$AT")
-SPOT_ID=$(body_of "$R" | json "d['items'][0]['id']")
-SPOT_NUM=$(body_of "$R" | json "d['items'][0]['number']")
+echo "==> create a spot and assign it to bob (owner)"
+SPOT_NUM="9$(date +%s | tail -c 6)"
+R=$(req POST /api/collections/spots/records \
+  "{\"number\":\"${SPOT_NUM}\",\"building\":\"1\",\"zone\":\"Smoke\",\"enabled\":true}" "$AT")
+SPOT_ID=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$SPOT_ID" ] && echo 1 || echo 0 )" "spot ${SPOT_NUM} created"
 R=$(req PATCH "/api/collections/spots/records/${SPOT_ID}" "{\"owner\":\"${U2_ID}\"}" "$AT")
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "spot ${SPOT_NUM} assigned to bob"
 
@@ -161,6 +163,10 @@ check "$( [ "$(body_of "$R" | json "d['status']")" = "completed" ] && echo 1 || 
 echo "==> non-owner cannot confirm"
 R=$(req POST "/api/guestspot/requests/${REQ2}/confirm" "{\"spot\":\"${SPOT_ID}\"}" "$T1")
 check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "alice (not owner) blocked from confirming (403, got $(code_of "$R"))"
+
+echo "==> cleanup"
+R=$(req DELETE "/api/collections/spots/records/${SPOT_ID}" "" "$AT")
+check "$( [ "$(code_of "$R")" = "204" ] && echo 1 || echo 0 )" "test spot ${SPOT_NUM} removed"
 
 echo
 echo "smoke: ${PASS} passed, ${FAIL} failed"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { pb } from '../lib/pb'
+import { cmpSpotNumber } from '../lib/format'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import type { SpotRecord, UserRecord } from '../types'
 
@@ -38,10 +39,10 @@ export default function SpotsPage() {
   const load = useMemo(
     () => async () => {
       const [spotsRes, usersRes] = await Promise.all([
-        pb.collection('spots').getFullList<SpotRecord>({ sort: 'number' }),
+        pb.collection('spots').getFullList<SpotRecord>(),
         pb.collection('users').getFullList<UserRecord>({ filter: 'approved = true' }),
       ])
-      setSpots(spotsRes)
+      setSpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
       setUsers(usersRes)
     },
     [],
@@ -224,7 +225,7 @@ function SpotModal({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('adminSpotNumber')}>
-            <Input value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} placeholder="B1-01" />
+            <Input value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} placeholder="301" />
           </Field>
           <Field label={t('building')}>
             <Select value={f.building} onChange={(e) => setF({ ...f, building: e.target.value })}>

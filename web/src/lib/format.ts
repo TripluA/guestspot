@@ -29,6 +29,14 @@ export function isPast(value: string | null | undefined): boolean {
   return d ? d.getTime() < Date.now() : false
 }
 
+export function cmpSpotNumber(a: string, b: string): number {
+  const num = (s: string) => parseInt(s.match(/\d+$/)?.[0] ?? s, 10)
+  const x = num(a)
+  const y = num(b)
+  if (!isNaN(x) && !isNaN(y) && x !== y) return x - y
+  return a.localeCompare(b)
+}
+
 export function localNowOffset(hours = 0): string {
   const d = new Date(Date.now() + hours * 3600 * 1000)
   const p = (n: number) => ('0' + n).slice(-2)
