@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
   Car,
+  Globe,
   House,
   LogOut,
   Moon,
@@ -26,7 +27,10 @@ function LangToggle() {
       className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
       title="Language"
     >
-      <span className="text-sm font-semibold uppercase">{current === 'ro' ? 'EN' : 'RO'}</span>
+      <span className="flex items-center gap-1">
+        <Globe className="size-4" />
+        <span className="text-sm font-semibold uppercase">{current === 'ro' ? 'RO' : 'EN'}</span>
+      </span>
     </button>
   )
 }

@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Car, LogOut, Moon, Shield, Sun } from 'lucide-react'
+import { Car, Globe, LogOut, Moon, Shield, Sun } from 'lucide-react'
 import { signOut } from '../auth'
 import { getTheme, setTheme } from '../lib/theme'
 import { setLang } from '../i18n'
@@ -15,7 +15,10 @@ function LangToggle() {
       onClick={() => setLang(current === 'ro' ? 'en' : 'ro')}
       className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
     >
-      <span className="text-sm font-semibold uppercase">{current === 'ro' ? 'EN' : 'RO'}</span>
+      <span className="flex items-center gap-1">
+        <Globe className="size-4" />
+        <span className="text-sm font-semibold uppercase">{current === 'ro' ? 'RO' : 'EN'}</span>
+      </span>
     </button>
   )
 }
