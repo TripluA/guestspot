@@ -22,6 +22,8 @@ export default function RegisterPage() {
     building: BUILDINGS[0],
     apartment: '',
     phone: '',
+    spotNumber: '',
+    spotZone: '',
     language: i18n.language === 'ro' ? ('ro' as const) : ('en' as const),
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -49,16 +51,18 @@ export default function RegisterPage() {
      if (!validate()) return
      setSubmitting(true)
      try {
-       await pb.collection('users').create({
-         name: form.name.trim(),
-         email: form.email.trim(),
-         password: form.password,
-         passwordConfirm: form.confirm,
-         building: form.building,
-         apartment: form.apartment.trim() || undefined,
-         phone: form.phone.trim() || undefined,
-         language: form.language,
-       })
+        await pb.collection('users').create({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          passwordConfirm: form.confirm,
+          building: form.building,
+          apartment: form.apartment.trim() || undefined,
+          phone: form.phone.trim() || undefined,
+          spotNumber: form.spotNumber.trim() || undefined,
+          spotZone: form.spotZone.trim() || undefined,
+          language: form.language,
+        })
        setLang(form.language)
        setDone(true)
      } catch (err) {
@@ -168,6 +172,22 @@ export default function RegisterPage() {
             />
           </Field>
 
+          <Field label={t('registerSpotNumber')}>
+            <Input
+              value={form.spotNumber}
+              onChange={(e) => setForm({ ...form, spotNumber: e.target.value })}
+              placeholder="301"
+            />
+          </Field>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t('registerSpotHint')}</p>
+          <Field label={t('registerSpotZone')}>
+            <Input
+              value={form.spotZone}
+              onChange={(e) => setForm({ ...form, spotZone: e.target.value })}
+              placeholder="Stairwell A"
+            />
+          </Field>
+
           {apiError && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
               {apiError}
@@ -180,7 +200,7 @@ export default function RegisterPage() {
         </form>
 
            <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-             {t('registerAlreadyHaveAccount')} {' '}
+             {t('registerLogin')} {' '}
              <Link to="/login" className="font-medium text-teal-700 hover:underline dark:text-teal-300">
                {t('loginButton')}
              </Link>

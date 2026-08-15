@@ -61,14 +61,51 @@ onRecordAuthRefreshRequest((e) => {
   e.next()
 }, "users")
 
-// Approval can only be changed by a superuser.
+// Approval can only be changed by a superuser; an approved user can never be
+// flipped back to pending. Approving a user who claimed a spot at registration
+// creates that spots record atomically (fails with a clear error on conflict).
 onRecordUpdateRequest((e) => {
+  const h = require(__hooks + "/helpers.js")
+  const prev = e.record.original()
+  const wasApproved = prev.getBool("approved")
+  const isApproved = e.record.getBool("approved")
+
   if (!e.hasSuperuserAuth()) {
-    const prev = e.record.original()
-    if (prev.getBool("approved") !== e.record.getBool("approved")) {
+    if (wasApproved !== isApproved) {
       throw new ForbiddenError("Approval can only be changed by an admin.")
     }
   }
+
+  if (wasApproved && !isApproved) {
+    throw new ForbiddenError("Approved users cannot be set back to pending.")
+  }
+
+  // Only on the pending -> approved transition: materialize the claimed spot.
+  if (!wasApproved && isApproved) {
+    const number = e.record.getString("spotNumber")
+    if (number) {
+      const existing = e.app.findRecordsByFilter(
+        "spots",
+        "number = {:number}",
+        "", 1, 0,
+        { number: number.trim() }
+      )
+      if (existing.length) {
+        throw new BadRequestError(
+          "A spot with this number already exists. Resolve the conflict before approving.",
+          { spotNumber: { code: "validation_not_unique", message: "A spot with this number already exists." } }
+        )
+      }
+      const spot = new Record(e.app.findCollectionByNameOrId("spots"))
+      spot.set("number", number.trim())
+      spot.set("building", e.record.getString("building"))
+      spot.set("zone", e.record.getString("spotZone") || null)
+      spot.set("owner", e.record.id)
+      spot.set("enabled", true)
+      e.app.save(spot)
+    }
+  }
+
   e.next()
 }, "users")
 

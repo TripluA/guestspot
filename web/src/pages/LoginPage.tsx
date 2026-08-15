@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Car } from 'lucide-react'
 import { pb } from '../lib/pb'
-import { pbErrorMessage } from '../lib/pbError'
 import { useSession } from '../auth'
 import { Button, Field, Input } from '../components/ui'
 
@@ -12,7 +11,6 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { user, isAdmin, loading } = useSession()
 
-  const [mode, setMode] = useState<'user' | 'admin'>('user')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -27,18 +25,22 @@ export default function LoginPage() {
      setError('')
      setSubmitting(true)
      try {
-       if (mode === 'user') {
+       try {
          await pb.collection('users').authWithPassword(email.trim(), password)
-       } else {
-         await pb.collection('_superusers').authWithPassword(email.trim(), password)
+         navigate('/app', { replace: true })
+         return
+       } catch (err) {
+         const msg = err instanceof Error ? err.message : ''
+         if (msg.includes('pending admin approval')) {
+           setError(t('pendingApproval'))
+           return
+         }
        }
-       navigate(mode === 'user' ? '/app' : '/admin', { replace: true })
-     } catch (err) {
-       const msg = err instanceof Error ? err.message : ''
-       if (msg.includes('pending admin approval')) {
-         setError(t('pendingApproval'))
-       } else {
-         setError(pbErrorMessage(err, t) || t('loginError'))
+       try {
+         await pb.collection('_superusers').authWithPassword(email.trim(), password)
+         navigate('/admin', { replace: true })
+       } catch {
+         setError(t('loginError'))
        }
      } finally {
        setSubmitting(false)
@@ -60,31 +62,6 @@ export default function LoginPage() {
           onSubmit={onSubmit}
           className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
         >
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <button
-              type="button"
-              onClick={() => setMode('user')}
-              className={
-                mode === 'user'
-                  ? 'rounded-md bg-white py-1.5 text-sm font-medium shadow-sm dark:bg-gray-700'
-                  : 'py-1.5 text-sm text-gray-500 dark:text-gray-400'
-              }
-            >
-              {t('loginUser')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('admin')}
-              className={
-                mode === 'admin'
-                  ? 'rounded-md bg-white py-1.5 text-sm font-medium shadow-sm dark:bg-gray-700'
-                  : 'py-1.5 text-sm text-gray-500 dark:text-gray-400'
-              }
-            >
-              {t('loginAdmin')}
-            </button>
-          </div>
-
           <Field label={t('loginEmail')}>
             <Input
               type="email"

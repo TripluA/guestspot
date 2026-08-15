@@ -28,6 +28,7 @@ const tabs = [
   { to: '/admin/approvals', label: 'adminApprovals', end: false },
   { to: '/admin/users', label: 'adminUsers', end: false },
   { to: '/admin/spots', label: 'adminSpots', end: false },
+  { to: '/admin/settings', label: 'navSettings', end: false },
 ]
 
 export default function AdminLayout() {

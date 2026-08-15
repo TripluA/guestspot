@@ -54,3 +54,34 @@ contexts for the CI smoke job.
   - B1 (CI smoke), B2 (Offerable compute), B3 (Guard requests), B4 (Availability verification)
   - R1 (Atomic confirm), R2 (Cleanup hooks), R3 (Error states), R4 (Dockerignore/npm ci)
   - P1 (Unused i18n keys), P2 (Pin PB image), P3 (Register wording)
+- Request-abort fix (2026-08-15) committed: autoCancellation off + nginx proxy.
+
+## Work plan (started 2026-08-15) — admin/self-service features
+
+All tasks completed and committed:
+
+1. **Admin self-service**: `/admin/settings` page + tab; `name` added to
+   `_superusers` (migration `1765500002_admin_name.js`); change own
+   name/email/password (`oldPassword`+`password`+`passwordConfirm`).
+2. **Admin edits users**: Edit modal in `UsersPage.tsx` (name, email, building,
+   apartment, phone, language, optional new password). Superuser bypasses the
+   users `updateRule`; PB sends verification on email change.
+3. **Singular login**: dropped user/admin toggle in `LoginPage.tsx`; tries `users`
+   auth first, surfaces "pending admin approval" verbatim, else falls back to
+   `_superusers`. `loginAdmin`/`loginUser` keys removed.
+4. **Block approved → pending**: `users.pb.js` `onRecordUpdateRequest` throws
+   when `prev.approved && !new.approved` (all callers); UI shows Edit+Delete
+   only for approved rows (pending rows get Approve+Delete).
+5. **Spot claim on registration**: optional `spotNumber`+`spotZone` on `users`
+   (migration `1765500003_spot_claim.js`); fields on `RegisterPage.tsx`; on
+   admin approval, `onRecordUpdateRequest` atomically creates the `spots`
+   record (owner=user) — fails with a clear error if `spots.number` exists, so
+   the admin resolves the conflict.
+
+Notes: use `fields.getByName()` in migrations (not `hasFieldWithName`/`list()`),
+and `e.app` (not `$app`) inside hooks — the `$app` global lacks
+`findRecordsByFilter`/`save` in PB 0.39.
+
+Verification: `cd web && npm run build`, `node --check pb/pb_hooks/*.js`,
+rebuild with the `-f docker-compose.ci.yml` override, then
+`set -a; source .env; set +a; bash scripts/smoke.sh` (28 tests).

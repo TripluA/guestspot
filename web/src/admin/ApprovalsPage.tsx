@@ -34,8 +34,8 @@ export default function ApprovalsPage() {
     try {
       await pb.collection('users').update(u.id, { approved: true })
       await refresh()
-    } catch {
-      setError(t('error'))
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
     } finally {
       setBusyId('')
     }

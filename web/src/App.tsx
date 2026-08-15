@@ -14,6 +14,7 @@ import OverviewPage from './admin/OverviewPage'
 import ApprovalsPage from './admin/ApprovalsPage'
 import UsersPage from './admin/UsersPage'
 import SpotsPage from './admin/SpotsPage'
+import SettingsPage from './admin/SettingsPage'
 
 function RequireUser({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useSession()
@@ -60,6 +61,7 @@ function AppRoutes() {
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="spots" element={<SpotsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
