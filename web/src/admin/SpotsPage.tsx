@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { cmpSpotNumber } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
+import { downloadCSV } from '../lib/csv'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import type { SpotRecord, UserRecord } from '../types'
 
@@ -120,15 +121,36 @@ export default function SpotsPage() {
   }
 
   if (!spots) return <Spinner />
+  const allSpots = spots
+
+  function exportCSV() {
+    downloadCSV(`guestspot-spots-${new Date().toISOString().slice(0, 10)}.csv`, [
+      ['Number', 'Building', 'Zone', 'Owner', 'Enabled', 'Notes'],
+      ...allSpots.map((s) => [
+        s.number,
+        s.building,
+        s.zone ?? '',
+        users.find((u) => u.id === s.owner)?.name ?? s.owner ?? '',
+        s.enabled ? 'yes' : 'no',
+        s.notes ?? '',
+      ]),
+    ])
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t('adminSpots')}</h1>
-        <Button onClick={() => setEditing(emptyForm)}>
-          <Plus className="size-4" />
-          {t('adminAddSpot')}
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={exportCSV}>
+            <Download className="size-4" />
+            {t('adminExport')}
+          </Button>
+          <Button size="sm" onClick={() => setEditing(emptyForm)}>
+            <Plus className="size-4" />
+            {t('adminAddSpot')}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

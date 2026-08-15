@@ -143,6 +143,14 @@ R=$(req POST "/api/guestspot/requests/${REQ1}/confirm" "{\"spot\":\"${SPOT_ID}\"
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "confirm route returns 200"
 check "$( [ "$(body_of "$R" | json "d['status']")" = "confirmed" ] && echo 1 || echo 0 )" "request confirmed"
 
+echo "==> confirmed request window is frozen"
+R=$(req PATCH "/api/collections/requests/records/${REQ1}" "{\"to\":\"$(dt 6)\"}" "$T1")
+check "$( [ "$(code_of "$R")" = "400" ] && echo 1 || echo 0 )" "requester cannot move confirmed window (400, got $(code_of "$R"))"
+
+echo "==> spot cannot be deleted while a confirmed request references it"
+R=$(req DELETE "/api/collections/spots/records/${SPOT_ID}" "" "$AT")
+check "$( [ "$(code_of "$R")" = "400" ] && echo 1 || echo 0 )" "spot delete blocked (400, got $(code_of "$R"))"
+
 echo "==> overlapping request cannot reuse the same spot"
 R=$(req POST /api/collections/requests/records \
   "{\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"guests\":1}" "$T1")
@@ -165,7 +173,34 @@ echo "==> non-owner cannot confirm"
 R=$(req POST "/api/guestspot/requests/${REQ2}/confirm" "{\"spot\":\"${SPOT_ID}\"}" "$T1")
 check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "alice (not owner) blocked from confirming (403, got $(code_of "$R"))"
 
+echo "==> overlapping availability is rejected"
+R=$(req POST /api/collections/availability/records \
+  "{\"spot\":\"${SPOT_ID}\",\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"status\":\"available\"}" "$T2")
+check "$( [ "$(code_of "$R")" = "400" ] && echo 1 || echo 0 )" "overlapping availability rejected (400, got $(code_of "$R"))"
+
+echo "==> spot claim on registration"
+U3_EMAIL="carol${TS}@example.com"
+SPOT_CLAIM="8$(date +%s | tail -c 5)"
+R=$(req POST /api/collections/users/records \
+  "{\"name\":\"Carol\",\"email\":\"${U3_EMAIL}\",\"password\":\"secret123\",\"passwordConfirm\":\"secret123\",\"building\":\"3\",\"language\":\"en\",\"spotNumber\":\"${SPOT_CLAIM}\",\"spotZone\":\"ZoneA\"}")
+U3_ID=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$U3_ID" ] && echo 1 || echo 0 )" "carol registered with spot claim (id=$U3_ID)"
+R=$(req PATCH "/api/collections/users/records/${U3_ID}" '{"approved":true}' "$AT")
+check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "carol approved"
+R=$(req GET "/api/collections/spots/records?perPage=100&filter=number%3D%22${SPOT_CLAIM}%22" "" "$AT")
+CLAIM_SPOT_ID=$(body_of "$R" | json "d['items'][0]['id'] if d['items'] else ''")
+check "$( [ -n "$CLAIM_SPOT_ID" ] && echo 1 || echo 0 )" "claimed spot ${SPOT_CLAIM} created on approval"
+check "$( [ "$(body_of "$R" | json "d['items'][0]['owner'] if d['items'] else ''")" = "$U3_ID" ] && echo 1 || echo 0 )" "claimed spot owned by carol"
+
+echo "==> deleting a user detaches their spots"
+R=$(req DELETE "/api/collections/users/records/${U2_ID}" "" "$AT")
+check "$( [ "$(code_of "$R")" = "204" ] && echo 1 || echo 0 )" "bob deleted"
+R=$(req GET "/api/collections/spots/records/${SPOT_ID}" "" "$AT")
+check "$( [ -z "$(body_of "$R" | json "d['owner']")" ] && echo 1 || echo 0 )" "bob's spot detached on user delete"
+
 echo "==> cleanup"
+R=$(req DELETE "/api/collections/spots/records/${CLAIM_SPOT_ID}" "" "$AT")
+check "$( [ "$(code_of "$R")" = "204" ] && echo 1 || echo 0 )" "claim spot ${SPOT_CLAIM} removed"
 R=$(req DELETE "/api/collections/spots/records/${SPOT_ID}" "" "$AT")
 check "$( [ "$(code_of "$R")" = "204" ] && echo 1 || echo 0 )" "test spot ${SPOT_NUM} removed"
 

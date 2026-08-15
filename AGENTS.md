@@ -82,6 +82,41 @@ Notes: use `fields.getByName()` in migrations (not `hasFieldWithName`/`list()`),
 and `e.app` (not `$app`) inside hooks — the `$app` global lacks
 `findRecordsByFilter`/`save` in PB 0.39.
 
+## Work plan (started 2026-08-15) — hardening & UX round
+
+All tasks completed and committed:
+
+- [x] P0 — README: fix stale "Resident/Admin login tab" copy (login is singular now).
+- [x] P1 — Remove debug `console.log`s in `RequestsPage.tsx`; align board filter with
+      Dashboard (`status = 'pending' || status = 'confirmed'`, not `!= 'cancelled'`).
+- [x] P2a — Wire `checkOverlap()` into `availability.pb.js` create+update; force
+      `owner = auth.id` on create.
+- [x] P2b — Freeze `from`/`to` on confirmed requests (`requests.pb.js` update guard).
+- [x] P2c — Rename `cleanup.pb.js.bak` → `cleanup.pb.js`: on user delete clear
+      `spots.owner` + cancel requests confirmed by them; on spot delete clear refs
+      on non-active requests.
+- [x] P2d — Block spot deletion while pending/confirmed requests reference it.
+- [x] P3 — `expired` request status (migration `1765500004`) + `cronAdd`
+      `guestspot-sweep` (confirmed past `to` → completed; pending past `to` →
+      expired + "no host found" email); StatusBadge + i18n key.
+- [x] P4 — Email UX: TZ-aware `fmtRange` (container `TZ`), Add-to-Calendar link in
+      confirm email.
+- [x] P5 — Requests board: "For me" filter toggle + load-more pagination.
+- [x] P6 — Admin CSV export (Users/Spots) + expand `scripts/smoke.sh`
+      (spot-claim approval, overlap rejected, confirmed-window edit blocked,
+      spot-delete guard, user-delete cleanup).
+
+Notes from this round:
+
+- `runSweep` lives in `helpers.js` (handlers/route/cron call `h.runSweep(...)`) —
+  PB executes handler bodies in isolated executor VMs where module-scope
+  functions from the .pb.js file are NOT visible (`ReferenceError`). The
+  `cronAdd` handler takes NO arguments in PB 0.39; `$app` is the executor's
+  `core.App` and does have `findRecordsByFilter`/`save`.
+- `scripts/smoke.sh` now runs 38 checks; a stale browser `pocketbase_auth`
+  localStorage token can be treated as anonymous after a PB container rebuild
+  (returns 200-empty lists) — clear it or re-login.
+
 Verification: `cd web && npm run build`, `node --check pb/pb_hooks/*.js`,
 rebuild with the `-f docker-compose.ci.yml` override, then
-`set -a; source .env; set +a; bash scripts/smoke.sh` (28 tests).
+`set -a; source .env; set +a; bash scripts/smoke.sh`.

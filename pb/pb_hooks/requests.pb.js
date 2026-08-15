@@ -63,14 +63,27 @@ onRecordAfterCreateSuccess((e) => {
 // --- update: only the requester may cancel; everything else is guarded. ---
 onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
+  const prev = e.record.original()
+  const status = e.record.getString("status")
+  const prevStatus = prev.getString("status")
+
   if (!e.hasSuperuserAuth()) {
     h.assertApproved(e.auth)
-    const status = e.record.getString("status")
-    const prev = e.record.original().getString("status")
-    if (status !== prev && status !== "cancelled") {
+    if (status !== prevStatus && status !== "cancelled") {
       throw new ForbiddenError("A request can only be changed to cancelled by its requester.")
     }
+    if (prevStatus === "confirmed" || status === "confirmed") {
+      if (
+        e.record.getString("from") !== prev.getString("from") ||
+        e.record.getString("to") !== prev.getString("to")
+      ) {
+        throw new BadRequestError("The time window of a confirmed request cannot be changed.")
+      }
+    }
   }
+
+  const err = h.rangeError(e.record.getString("from"), e.record.getString("to"))
+  if (err) throw new BadRequestError(err)
   e.next()
 }, "requests")
 
@@ -114,7 +127,12 @@ routerAdd("POST", "/api/guestspot/requests/{id}/confirm", (e) => {
         "<p><b>" + h.t(lang, "spot") + ":</b> " + h.esc(spot.getString("number")) +
         " (" + h.t(lang, "building") + " " + spot.getString("building") + ")</p>" +
         "<p><b>" + h.t(lang, "owner") + ":</b> " + h.esc(owner ? owner.getString("name") : "") + "</p>" +
-        "<p><b>" + h.fmtRange(from, to) + "</b></p>"
+        "<p><b>" + h.fmtRange(from, to) + "</b></p>" +
+        "<p><a href='" + h.gcalURL(
+          from, to,
+          h.t(lang, "spot") + " " + spot.getString("number"),
+          h.t(lang, "building") + " " + spot.getString("building")
+        ) + "'>" + h.t(lang, "mail.add_to_calendar") + "</a></p>"
       )
     }
     if (owner) {

@@ -183,5 +183,4 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
         : status === 'cancelled'
           ? 'red'
           : 'gray'
-  return <Badge color={color as 'green' | 'amber' | 'red' | 'gray'}>{label ?? status}</Badge>
-}
+  return <Badge color={color as 'green' | 'amber' | 'red' | 'gray'}>{label ?? status}</Badge>}

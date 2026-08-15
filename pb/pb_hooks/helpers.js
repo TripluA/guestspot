@@ -23,6 +23,11 @@ module.exports = (function () {
       "mail.request_cancelled.subject": "GuestSpot: a request was cancelled",
       "mail.request_cancelled.body": "A parking request involving your spot has been cancelled.",
       "mail.waiting_note": "You will receive an email as soon as a host confirms.",
+      "mail.host_removed.subject": "GuestSpot: your request was cancelled",
+      "mail.host_removed.body": "The host who confirmed your request is no longer in GuestSpot, so the request was cancelled.",
+      "mail.expired.subject": "GuestSpot: no host found for your request",
+      "mail.expired.body": "Nobody offered a parking spot for your request, so it expired. You can submit a new request with a different time window.",
+      "mail.add_to_calendar": "Add to calendar",
     },
     ro: {
       "building": "Bloc",
@@ -44,6 +49,11 @@ module.exports = (function () {
       "mail.request_cancelled.subject": "GuestSpot: o cerere a fost anulată",
       "mail.request_cancelled.body": "O cerere de parcare care implica locul tău a fost anulată.",
       "mail.waiting_note": "Veți primi un email imediat ce o gazdă confirmă.",
+      "mail.host_removed.subject": "GuestSpot: cererea ta a fost anulată",
+      "mail.host_removed.body": "Gazda care ți-a confirmat cererea nu mai este în GuestSpot, astfel încât cererea a fost anulată.",
+      "mail.expired.subject": "GuestSpot: nu s-a găsit o gazdă pentru cererea ta",
+      "mail.expired.body": "Nimeni nu a oferit un loc de parcare pentru cererea ta, astfel încât aceasta a expirat. Poți trimite o nouă cerere cu o altă perioadă de timp.",
+      "mail.add_to_calendar": "Adaugă în calendar",
     },
   }
 
@@ -75,15 +85,30 @@ module.exports = (function () {
     return ("0" + n).slice(-2)
   }
 
+  // Format datetimes in the container's local timezone (the TZ env var,
+  // e.g. Europe/Bucharest) instead of UTC — recipients see their local time.
   function fmtDT(value) {
     const d = parseDT(value)
     if (!d) return String(value)
-    return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate()) +
-      " " + pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes())
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+      " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes())
   }
 
   function fmtRange(from, to) {
-    return fmtDT(from) + " → " + fmtDT(to) + " (UTC)"
+    return fmtDT(from) + " → " + fmtDT(to)
+  }
+
+  // Google Calendar "Add to calendar" link. Dates use UTC (Z suffix) so each
+  // recipient sees the event at the correct absolute time in their own zone.
+  function gcalURL(from, to, title, details) {
+    const fmt = (value) => {
+      const d = parseDT(value)
+      if (!d) return ""
+      return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")
+    }
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" +
+      encodeURIComponent(title || "") + "&dates=" + fmt(from) + "/" + fmt(to) +
+      "&details=" + encodeURIComponent(details || "")
   }
 
   function wrap(html) {
@@ -201,12 +226,54 @@ module.exports = (function () {
     }
   }
 
+  // Sweeps requests past their window:
+  //   confirmed -> completed
+  //   pending   -> expired (+ "no host found" email to the requester).
+  // Called by the cron job and the admin-only manual trigger (cron.pb.js).
+  function runSweep(app) {
+    const now = new Date()
+
+    const completed = app.findRecordsByFilter(
+      "requests",
+      "status = 'confirmed' && to <= {:now}",
+      "", 500, 0,
+      { now: now }
+    )
+    for (let i = 0; i < completed.length; i++) {
+      completed[i].set("status", "completed")
+      app.save(completed[i])
+    }
+
+    const expired = app.findRecordsByFilter(
+      "requests",
+      "status = 'pending' && to <= {:now}",
+      "", 500, 0,
+      { now: now }
+    )
+    for (let i = 0; i < expired.length; i++) {
+      const req = expired[i]
+      const requester = loadUser(app, req.getString("requester"))
+      req.set("status", "expired")
+      app.save(req)
+      if (requester) {
+        const lang = requester.getString("language") || "en"
+        sendMail(
+          requester.getString("email"),
+          t(lang, "mail.expired.subject"),
+          "<p>" + t(lang, "mail.expired.body") + "</p>" +
+          "<p><b>" + fmtRange(req.getString("from"), req.getString("to")) + "</b></p>"
+        )
+      }
+    }
+  }
+
   return {
     t: t,
     esc: esc,
     appURL: appURL,
     parseDT: parseDT,
     fmtRange: fmtRange,
+    gcalURL: gcalURL,
     sendMail: sendMail,
     adminNotifyEmails: adminNotifyEmails,
     loadUser: loadUser,
@@ -217,5 +284,6 @@ module.exports = (function () {
     checkOverlap: checkOverlap,
     rangeError: rangeError,
     assertApproved: assertApproved,
+    runSweep: runSweep,
   }
 })()

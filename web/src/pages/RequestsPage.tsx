@@ -31,32 +31,46 @@ export default function RequestsPage() {
   const [requests, setRequests] = useState<GuestRequestRecord[]>([])
   const [mine, setMine] = useState<GuestRequestRecord[]>([])
   const [mySpots, setMySpots] = useState<SpotRecord[]>([])
+  const [confirmedAll, setConfirmedAll] = useState<GuestRequestRecord[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [forMe, setForMe] = useState(false)
 
   const [showNew, setShowNew] = useState(false)
   const [offering, setOffering] = useState<GuestRequestRecord | null>(null)
   const isRefreshing = useRef(false)
 
+  const PAGE_SIZE = 10
+
   const refresh = useCallback(async () => {
     if (!user || isRefreshing.current) return
     isRefreshing.current = true
     try {
-      const boardRes = await pb.collection('requests').getFullList<GuestRequestRecord>({
-        sort: '-createdAt',
-        expand: 'requester,spot,confirmer',
-        filter: "status != 'cancelled'",
-      })
-      const mineRes = await pb.collection('requests').getFullList<GuestRequestRecord>({
-        sort: '-createdAt',
-        expand: 'requester,spot,confirmer',
-        filter: `requester = "${user.id}"`,
-      })
-      const spotsRes = await pb.collection('spots').getFullList<SpotRecord>({
-        filter: `owner = "${user.id}"`,
-      })
-      
-      setRequests(boardRes)
+      const [boardRes, mineRes, spotsRes, confirmedRes] = await Promise.all([
+        pb.collection('requests').getList<GuestRequestRecord>(1, PAGE_SIZE, {
+          sort: '-createdAt',
+          expand: 'requester,spot,confirmer',
+          filter: "status = 'pending' || status = 'confirmed'",
+        }),
+        pb.collection('requests').getFullList<GuestRequestRecord>({
+          sort: '-createdAt',
+          expand: 'requester,spot,confirmer',
+          filter: `requester = "${user.id}"`,
+        }),
+        pb.collection('spots').getFullList<SpotRecord>({
+          filter: `owner = "${user.id}"`,
+        }),
+        pb.collection('requests').getFullList<GuestRequestRecord>({
+          filter: "status = 'confirmed'",
+        }),
+      ])
+
+      setRequests(boardRes.items)
+      setPage(boardRes.page)
+      setHasMore(boardRes.page * boardRes.perPage < boardRes.totalItems)
       setMine(mineRes)
       setMySpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
+      setConfirmedAll(confirmedRes)
     } catch (err) {
       if ((err as any)?.status !== 0) {
         throw err
@@ -65,6 +79,22 @@ export default function RequestsPage() {
       isRefreshing.current = false
     }
   }, [user])
+
+  const loadMore = useCallback(async () => {
+    const next = page + 1
+    try {
+      const res = await pb.collection('requests').getList<GuestRequestRecord>(next, PAGE_SIZE, {
+        sort: '-createdAt',
+        expand: 'requester,spot,confirmer',
+        filter: "status = 'pending' || status = 'confirmed'",
+      })
+      setRequests((prev) => [...prev, ...res.items])
+      setPage(res.page)
+      setHasMore(res.page * res.perPage < res.totalItems)
+    } catch (err) {
+      if ((err as any)?.status !== 0) throw err
+    }
+  }, [page])
 
   useEffect(() => {
     let active = true
@@ -92,20 +122,20 @@ export default function RequestsPage() {
       if (!user) return []
       return mySpots.filter((s) => {
         if (!s.enabled) return false
-        const conflicted = requests.some(
+        const conflicted = confirmedAll.some(
           (x) =>
             x.spot === s.id &&
-            x.status === 'confirmed' &&
             x.from < r.to &&
             x.to > r.from,
         )
         return !conflicted
       })
     },
-    [mySpots, requests, user],
+    [mySpots, confirmedAll, user],
   )
 
   const offerable = offering ? offerableFor(offering) : []
+  const shownBoard = forMe ? requests.filter((r) => offerableFor(r).length > 0) : requests
 
   if (loading || !user) return <Spinner />
 
@@ -144,8 +174,23 @@ export default function RequestsPage() {
 
       {tab === 'board' ? (
         <div className="space-y-2">
-          {requests.length === 0 && <EmptyState title={t('reqEmptyBoard')} />}
-          {requests.map((r) => {
+          <div className="flex items-center justify-between">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={forMe}
+                onChange={(e) => setForMe(e.target.checked)}
+                className="size-4 accent-teal-600"
+              />
+              {t('reqForMe')}
+            </label>
+            <span className="text-sm text-gray-400 dark:text-gray-500">
+              {shownBoard.length}
+              {forMe ? ` / ${requests.length}` : ''}
+            </span>
+          </div>
+          {shownBoard.length === 0 && <EmptyState title={forMe ? t('reqEmptyForMe') : t('reqEmptyBoard')} />}
+          {shownBoard.map((r) => {
             const available = offerableFor(r)
             return (
               <RequestCard
@@ -157,6 +202,11 @@ export default function RequestsPage() {
               />
             )
           })}
+          {hasMore && (
+            <Button variant="secondary" className="w-full" onClick={() => void loadMore()}>
+              {t('reqLoadMore')}
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
@@ -283,7 +333,6 @@ function NewRequestModal({
   const [submitting, setSubmitting] = useState(false)
 
   async function submit() {
-    console.log('[NewRequestModal] submit clicked')
     setError('')
     if (!from || !to || to <= from) {
       setError(t('validationRequired'))
@@ -291,14 +340,12 @@ function NewRequestModal({
     }
     setSubmitting(true)
     try {
-      console.log('[NewRequestModal] creating request', { from, to, guests, note })
       await pb.collection('requests').create({
         from: toPbDate(from),
         to: toPbDate(to),
         guests: Number(guests) || undefined,
         note: note.trim() || undefined,
       })
-      console.log('[NewRequestModal] request created')
       onDone()
       onClose()
     } catch (err) {

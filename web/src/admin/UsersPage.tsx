@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil } from 'lucide-react'
+import { Download, Pencil } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
+import { downloadCSV } from '../lib/csv'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import { fmtDT } from '../lib/format'
 import type { Building, Language, UserRecord } from '../types'
@@ -73,10 +74,33 @@ export default function UsersPage() {
 
   if (error) return <p className="text-red-500">{error}</p>
   if (!users) return <Spinner />
+  const allUsers = users
+
+  function exportCSV() {
+    downloadCSV(`guestspot-users-${new Date().toISOString().slice(0, 10)}.csv`, [
+      ['Name', 'Email', 'Building', 'Apartment', 'Phone', 'Language', 'Approved', 'Created'],
+      ...allUsers.map((u) => [
+        u.name,
+        u.email,
+        u.building,
+        u.apartment ?? '',
+        u.phone ?? '',
+        u.language,
+        u.approved ? 'yes' : 'no',
+        u.created,
+      ]),
+    ])
+  }
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-bold">{t('adminUsers')}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">{t('adminUsers')}</h1>
+        <Button size="sm" variant="secondary" onClick={exportCSV}>
+          <Download className="size-4" />
+          {t('adminExport')}
+        </Button>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <Input

@@ -16,9 +16,9 @@ Then open `http://localhost:8080` (port configurable via `WEB_PORT`).
 
 > The stack runs the images published to GHCR by CI on `main`. On a fresh host run `docker compose pull` first (or set `GUESTSPOT_TAG` to a `v*` release). If the GHCR packages are private, log in once: `docker login ghcr.io`.
 
-On every boot the backend creates/updates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. If a `.env` file exists, its values override the compose defaults — sign in with **those** values. The admin panel lives at `http://localhost:8080/_/` (or use the **Admin** tab on the `/login` page).
+On every boot the backend creates/updates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. If a `.env` file exists, its values override the compose defaults — sign in with **those** values. There is a single login form at `/login`: it tries resident credentials first, then falls back to the admin superuser. The admin panel also lives at `/_/` (or browse to `/admin` after signing in as admin).
 
-> The admin superuser is not a regular account: `admin@example.com` only works on the **Admin** login tab, never the **Resident** tab. Residents register themselves and an admin approves them.
+> Residents register themselves and an admin approves them; approved residents sign in on the same `/login` page.
 
 ## Configuration
 
