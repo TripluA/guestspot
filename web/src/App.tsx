@@ -13,6 +13,7 @@ import AdminLayout from './admin/AdminLayout'
 import OverviewPage from './admin/OverviewPage'
 import ApprovalsPage from './admin/ApprovalsPage'
 import UsersPage from './admin/UsersPage'
+import AdminRequestsPage from './admin/RequestsPage'
 import SpotsPage from './admin/SpotsPage'
 import SettingsPage from './admin/SettingsPage'
 
@@ -60,6 +61,7 @@ function AppRoutes() {
         <Route index element={<OverviewPage />} />
         <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="requests" element={<AdminRequestsPage />} />
         <Route path="spots" element={<SpotsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

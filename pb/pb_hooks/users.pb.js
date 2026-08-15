@@ -1,10 +1,42 @@
 // Registration approval flow + login gating + profile field protection.
 // NOTE: every handler is an isolated program and must require() its own helpers.
 
-// Force sane values on self-registration (guests cannot approve themselves).
+// Force sane values on self-registration (guests cannot approve themselves)
+// and throttle anonymous registration attempts per IP.
 onRecordCreateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth()) {
+    // Rate limit: REG_MAX_PER_HOUR attempts per IP per rolling hour. The app
+    // sits behind the web nginx proxy, so PB's remoteAddr is the proxy IP for
+    // everyone; read the real client IP from X-Forwarded-For instead (the last
+    // entry is appended by nginx and is the actual TCP peer).
+    const info = e.requestInfo()
+    const hdrs = info && info.headers ? info.headers : {}
+    const xff = hdrs["x_forwarded_for"] || ""
+    let ip = ""
+    if (Array.isArray(xff)) {
+      const parts = String(xff[xff.length - 1] || "").split(",").map((s) => s.trim()).filter(Boolean)
+      ip = parts.length ? parts[parts.length - 1] : ""
+    } else if (typeof xff === "string") {
+      const parts = xff.split(",").map((s) => s.trim()).filter(Boolean)
+      ip = parts.length ? parts[parts.length - 1] : ""
+    }
+    if (ip) {
+      const maxPerHour = parseInt($os.getenv("REG_MAX_PER_HOUR") || "10", 10) || 10
+      const cutoff = h.pbDateTime(new Date(Date.now() - 60 * 60 * 1000))
+      const attempts = e.app.findRecordsByFilter(
+        "reg_attempts",
+        "ip = {:ip} && createdAt >= {:cutoff}",
+        "", maxPerHour, 0,
+        { ip: ip, cutoff: cutoff }
+      )
+      if (attempts.length >= maxPerHour) {
+        throw new ForbiddenError("Too many registration attempts. Please try again later.")
+      }
+      const attempt = new Record(e.app.findCollectionByNameOrId("reg_attempts"))
+      attempt.set("ip", ip)
+      e.app.save(attempt)
+    }
     e.record.set("approved", false)
     if (!e.record.getString("language")) e.record.set("language", "en")
   }

@@ -68,6 +68,31 @@ echo "==> spots collection queryable"
 R=$(req GET '/api/collections/spots/records?perPage=1' "" "$AT")
 check "$( [ "$(body_of "$R" | json "d['totalItems']")" -ge 0 ] 2>/dev/null && echo 1 || echo 0 )" "spots collection queryable"
 
+echo "==> admin-only collections are locked (empty-string rules are public in PB!)"
+R=$(req POST /api/collections/spots/records '{"number":"ANON-1","building":"1","enabled":true}')
+check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "anonymous spot create blocked (403, got $(code_of "$R"))"
+R=$(req POST /api/collections/spots/records '{"number":"LOCK-1","building":"1","enabled":true}' "$AT")
+LOCK_SPOT_ID=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$LOCK_SPOT_ID" ] && echo 1 || echo 0 )" "admin creates a throwaway spot (id=$LOCK_SPOT_ID)"
+if [ -n "$LOCK_SPOT_ID" ]; then
+  R=$(req PATCH "/api/collections/spots/records/${LOCK_SPOT_ID}" '{"notes":"pwned"}')
+  check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "anonymous spot update blocked (403, got $(code_of "$R"))"
+  R=$(req DELETE "/api/collections/spots/records/${LOCK_SPOT_ID}")
+  check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "anonymous spot delete blocked (403, got $(code_of "$R"))"
+  req DELETE "/api/collections/spots/records/${LOCK_SPOT_ID}" "" "$AT" >/dev/null
+fi
+DEL_EMAIL="delme$(date +%s)@example.com"
+R=$(req POST /api/collections/users/records \
+  "{\"name\":\"DelMe\",\"email\":\"${DEL_EMAIL}\",\"password\":\"secret123\",\"passwordConfirm\":\"secret123\",\"building\":\"1\",\"language\":\"en\"}" "$AT")
+DEL_USER_ID=$(body_of "$R" | json "d['id']")
+if [ -n "$DEL_USER_ID" ]; then
+  R=$(req DELETE "/api/collections/users/records/${DEL_USER_ID}")
+  check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "anonymous user delete blocked (403, got $(code_of "$R"))"
+  req DELETE "/api/collections/users/records/${DEL_USER_ID}" "" "$AT" >/dev/null
+fi
+R=$(req GET '/api/collections/reg_attempts/records?perPage=1')
+check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "anonymous reg_attempts read blocked (403, got $(code_of "$R"))"
+
 echo "==> register two users"
 TS=$(date +%s)
 U1_EMAIL="alice${TS}@example.com"
@@ -129,6 +154,12 @@ R=$(req POST /api/collections/availability/records \
   "{\"spot\":\"${SPOT_ID}\",\"from\":\"${FROM1}\",\"to\":\"${TO1}\",\"reason\":\"vacation\",\"owner\":\"${U2_ID}\",\"status\":\"available\"}" "$T2")
 check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "bob creates availability"
 check "$( [ "$(body_of "$R" | json "d['status']")" = "available" ] && echo 1 || echo 0 )" "availability status available"
+check "$( [ "$(body_of "$R" | json "d['owner']")" = "$U2_ID" ] && echo 1 || echo 0 )" "availability owner forced to bob"
+
+echo "==> non-owner cannot attach availability to someone else's spot"
+R=$(req POST /api/collections/availability/records \
+  "{\"spot\":\"${SPOT_ID}\",\"from\":\"${FROM1}\",\"to\":\"${TO1}\",\"status\":\"available\"}" "$T1")
+check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "alice (not owner) blocked from creating availability (403, got $(code_of "$R"))"
 
 echo "==> alice submits a request inside the window"
 FROM2=$(dt 3)
@@ -191,6 +222,59 @@ R=$(req GET "/api/collections/spots/records?perPage=100&filter=number%3D%22${SPO
 CLAIM_SPOT_ID=$(body_of "$R" | json "d['items'][0]['id'] if d['items'] else ''")
 check "$( [ -n "$CLAIM_SPOT_ID" ] && echo 1 || echo 0 )" "claimed spot ${SPOT_CLAIM} created on approval"
 check "$( [ "$(body_of "$R" | json "d['items'][0]['owner'] if d['items'] else ''")" = "$U3_ID" ] && echo 1 || echo 0 )" "claimed spot owned by carol"
+
+echo "==> admin requests sweep (expired / completed)"
+R=$(req POST /api/collections/requests/records \
+  "{\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"guests\":1}" "$T1")
+REQ_P=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$REQ_P" ] && echo 1 || echo 0 )" "sweep pending request created (id=$REQ_P)"
+R=$(req PATCH "/api/collections/requests/records/${REQ_P}" "{\"from\":\"$(dt -3)\",\"to\":\"$(dt -1)\"}" "$AT")
+check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "admin moved pending request window into the past"
+
+R=$(req POST /api/collections/requests/records \
+  "{\"from\":\"${FROM2}\",\"to\":\"${TO2}\",\"guests\":1}" "$T1")
+REQ_PC=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$REQ_PC" ] && echo 1 || echo 0 )" "sweep confirm request created (id=$REQ_PC)"
+R=$(req PATCH "/api/collections/requests/records/${REQ_PC}" "{\"from\":\"$(dt -3)\",\"to\":\"$(dt -1)\"}" "$AT")
+check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "admin moved confirm request window into the past"
+R=$(req POST "/api/guestspot/requests/${REQ_PC}/confirm" "{\"spot\":\"${SPOT_ID}\"}" "$T2")
+check "$( [ "$(body_of "$R" | json "d['status']")" = "confirmed" ] && echo 1 || echo 0 )" "past-window request confirmed"
+
+R=$(req POST /api/collections/availability/records \
+  "{\"spot\":\"${SPOT_ID}\",\"from\":\"$(dt -4)\",\"to\":\"$(dt -2)\",\"status\":\"available\"}" "$T2")
+AVAIL_PAST=$(body_of "$R" | json "d['id']")
+check "$( [ -n "$AVAIL_PAST" ] && echo 1 || echo 0 )" "past availability created (id=$AVAIL_PAST)"
+
+R=$(req POST "/api/guestspot/admin/sweep" "" "$T1")
+check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "user token cannot trigger sweep (403, got $(code_of "$R"))"
+R=$(req POST "/api/guestspot/admin/sweep" "" "$AT")
+check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "admin sweep returns 200"
+R=$(req GET "/api/collections/requests/records/${REQ_P}" "" "$T1")
+check "$( [ "$(body_of "$R" | json "d['status']")" = "expired" ] && echo 1 || echo 0 )" "past pending request expired"
+R=$(req GET "/api/collections/requests/records/${REQ_PC}" "" "$T1")
+check "$( [ "$(body_of "$R" | json "d['status']")" = "completed" ] && echo 1 || echo 0 )" "past confirmed request completed"
+R=$(req GET "/api/collections/availability/records/${AVAIL_PAST}" "" "$AT")
+check "$( [ "$(body_of "$R" | json "d['status']")" = "expired" ] && echo 1 || echo 0 )" "past availability window expired"
+
+echo "==> registration spam throttle"
+R=$(req GET '/api/collections/reg_attempts/records?perPage=100' "" "$AT")
+THROTTLE_IP=$(body_of "$R" | json "d['items'][0]['ip'] if d['items'] else ''")
+check "$( [ -n "$THROTTLE_IP" ] && echo 1 || echo 0 )" "registration attempts recorded (ip=$THROTTLE_IP)"
+if [ -n "$THROTTLE_IP" ]; then
+  COUNT=$(body_of "$R" | json "sum(1 for x in d['items'] if x['ip'] == '${THROTTLE_IP}')")
+  NEED=$((10 - COUNT))
+  for i in $(seq 1 $NEED); do
+    req POST /api/collections/reg_attempts/records "{\"ip\":\"${THROTTLE_IP}\"}" "$AT" >/dev/null
+  done
+  R=$(req POST /api/collections/users/records \
+    "{\"name\":\"Throttled\",\"email\":\"throttled${TS}@example.com\",\"password\":\"secret123\",\"passwordConfirm\":\"secret123\",\"building\":\"4\",\"language\":\"en\"}")
+  check "$( [ "$(code_of "$R")" = "403" ] && echo 1 || echo 0 )" "over-limit registration rejected (403, got $(code_of "$R"))"
+fi
+R=$(req GET '/api/collections/reg_attempts/records?perPage=100' "" "$AT")
+for ID in $(body_of "$R" | json "' '.join([x['id'] for x in d['items']])"); do
+  req DELETE "/api/collections/reg_attempts/records/${ID}" "" "$AT" >/dev/null
+done
+echo "    cleaned up reg_attempts rows"
 
 echo "==> deleting a user detaches their spots"
 R=$(req DELETE "/api/collections/users/records/${U2_ID}" "" "$AT")

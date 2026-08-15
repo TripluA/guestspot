@@ -79,6 +79,7 @@ export default {
   reqOfferHint: 'Choose one of your spots that is free in this period.',
   reqNoOfferable: 'No spots available to offer for this window.',
   reqCancel: 'Cancel request',
+  reqEdit: 'Edit request',
   reqComplete: 'Mark completed',
   reqStatusPending: 'Pending',
   reqStatusConfirmed: 'Confirmed',
@@ -104,6 +105,7 @@ export default {
   spotsCancelAvailability: 'Cancel',
   spotsStatusAvailable: 'Available',
   spotsStatusCancelled: 'Cancelled',
+  spotsStatusExpired: 'Expired',
   spotsAvailabilityCancelConfirm: 'Cancel this availability window?',
 
    // profile
@@ -135,6 +137,7 @@ export default {
   adminOverview: 'Overview',
   adminApprovals: 'Approvals',
   adminUsers: 'Users',
+  adminRequests: 'Requests',
   adminSpots: 'Spots',
   adminPending: 'Pending',
   adminApprove: 'Approve',
@@ -162,6 +165,7 @@ export default {
   adminSpotEnabled: 'Enabled',
   adminSpotOwner: 'Owner',
   adminSearchSpots: 'Search spot or building…',
+  adminSearchRequests: 'Search requester, spot or note…',
   adminSave: 'Save',
   adminDeleteSpotConfirm: 'Delete this spot?',
    adminRejectUserConfirm: 'Delete this registration?',

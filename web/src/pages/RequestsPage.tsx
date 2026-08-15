@@ -16,7 +16,7 @@ import {
   StatusBadge,
   cn,
 } from '../components/ui'
-import { fmtRange, fmtDT, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
+import { fmtRange, fmtDT, localNowOffset, toPbDate, cmpSpotNumber, fromPbDate } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
 import type { GuestRequestRecord, SpotRecord } from '../types'
 
@@ -38,6 +38,7 @@ export default function RequestsPage() {
 
   const [showNew, setShowNew] = useState(false)
   const [offering, setOffering] = useState<GuestRequestRecord | null>(null)
+  const [editing, setEditing] = useState<GuestRequestRecord | null>(null)
   const isRefreshing = useRef(false)
 
   const PAGE_SIZE = 10
@@ -217,6 +218,7 @@ export default function RequestsPage() {
               r={r}
               t={t}
               mine
+              onEdit={() => setEditing(r)}
               onChanged={() => void refresh()}
             />
           ))}
@@ -224,6 +226,15 @@ export default function RequestsPage() {
       )}
 
       <NewRequestModal open={showNew} onClose={() => setShowNew(false)} onDone={() => void refresh()} />
+
+      <EditRequestModal
+        request={editing}
+        onClose={() => setEditing(null)}
+        onDone={() => {
+          setEditing(null)
+          void refresh()
+        }}
+      />
 
       <OfferModal
         request={offering}
@@ -244,6 +255,7 @@ function RequestCard({
   mine = false,
   canOffer = false,
   onOffer,
+  onEdit,
   onChanged,
 }: {
   r: GuestRequestRecord
@@ -251,6 +263,7 @@ function RequestCard({
   mine?: boolean
   canOffer?: boolean
   onOffer?: () => void
+  onEdit?: () => void
   onChanged?: () => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -260,10 +273,10 @@ function RequestCard({
     if (!window.confirm(`${msg}?`)) return
     setBusy(true)
     try {
-      await pb.send(`/api/guestspot/requests/${r.id}/${action}`, {})
+      await pb.send(`/api/guestspot/requests/${r.id}/${action}`, { method: 'POST' })
       onChanged?.()
-    } catch {
-      window.alert(t('reqUpdateError'))
+    } catch (err) {
+      window.alert(pbErrorMessage(err, t) || t('reqUpdateError'))
     } finally {
       setBusy(false)
     }
@@ -297,6 +310,11 @@ function RequestCard({
           {canOffer && onOffer && (
             <Button size="sm" onClick={onOffer}>
               {t('reqOffer')}
+            </Button>
+          )}
+          {mine && r.status === 'pending' && onEdit && (
+            <Button size="sm" variant="secondary" onClick={onEdit}>
+              {t('reqEdit')}
             </Button>
           )}
           {mine && (r.status === 'pending' || r.status === 'confirmed') && (
@@ -397,6 +415,106 @@ function NewRequestModal({
   )
 }
 
+function EditRequestModal({
+  request,
+  onClose,
+  onDone,
+}: {
+  request: GuestRequestRecord | null
+  onClose: () => void
+  onDone: () => void
+}) {
+  const { t } = useTranslation()
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [guests, setGuests] = useState('')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!request) return
+    const toInput = (v: string | null | undefined) => {
+      const d = fromPbDate(v)
+      if (!d) return ''
+      const p = (n: number) => ('0' + n).slice(-2)
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+    }
+    setFrom(toInput(request.from))
+    setTo(toInput(request.to))
+    setGuests(request.guests ? String(request.guests) : '')
+    setNote(request.note ?? '')
+    setError('')
+  }, [request])
+
+  if (!request) return null
+  const req = request
+
+  async function submit() {
+    setError('')
+    if (!from || !to || to <= from) {
+      setError(t('validationRequired'))
+      return
+    }
+    setSubmitting(true)
+    try {
+      await pb.collection('requests').update(req.id, {
+        from: toPbDate(from),
+        to: toPbDate(to),
+        guests: Number(guests) || undefined,
+        note: note.trim() || undefined,
+      })
+      onDone()
+      onClose()
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal open title={t('reqEdit')} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t('reqFrom')}>
+            <Input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </Field>
+          <Field label={t('reqTo')}>
+            <Input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+        </div>
+        <Field label={t('reqGuests')}>
+          <Select value={guests} onChange={(e) => setGuests(e.target.value)}>
+            <option value="">—</option>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t('reqNote')}>
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Car plate, arrival time…" />
+        </Field>
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button loading={submitting} onClick={() => void submit()}>
+            {t('save')}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function OfferModal({
   request,
   spots,
@@ -426,6 +544,7 @@ function OfferModal({
     setError('')
     try {
       await pb.send(`/api/guestspot/requests/${request.id}/confirm`, {
+        method: 'POST',
         body: { spot: spotId },
       })
       onDone()

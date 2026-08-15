@@ -113,9 +113,84 @@ Notes from this round:
   functions from the .pb.js file are NOT visible (`ReferenceError`). The
   `cronAdd` handler takes NO arguments in PB 0.39; `$app` is the executor's
   `core.App` and does have `findRecordsByFilter`/`save`.
-- `scripts/smoke.sh` now runs 38 checks; a stale browser `pocketbase_auth`
-  localStorage token can be treated as anonymous after a PB container rebuild
-  (returns 200-empty lists) — clear it or re-login.
+- `scripts/smoke.sh` is the E2E gate (59 checks as of round 3); a stale browser
+  `pocketbase_auth` localStorage token can be treated as anonymous after a PB
+  container rebuild (returns 200-empty lists) — clear it or re-login.
+
+## Work plan (started 2026-08-15) — round 3: bugs + admin requests
+
+- [x] F0 — CRITICAL: frontend custom-route calls send GET, not POST. The PB JS
+      SDK's `send()` defaults `method` to GET (`initSendOptions` merges
+      `{method:"GET"}`); the custom `routerAdd` routes are POST-only, so
+      cancel/complete/confirm all 404 in the browser ("Could not update the
+      request."). Fixed `RequestsPage.tsx` (`run` + OfferModal confirm) to pass
+      `method: 'POST'`; errors now surface via `pbErrorMessage`.
+- [x] F1 — Availability ownership guard: `availability.pb.js` create/update
+      hooks now call `h.assertSpotOwner` (loads the spot and requires
+      `spot.owner === auth.id`; superusers bypass). Smoke: non-owner create → 403.
+- [x] F2 — Admin Requests page: `web/src/admin/RequestsPage.tsx` lists all
+      requests with status/building/search filters + CSV export; route
+      `/admin/requests` + tab in `AdminLayout.tsx`; i18n keys
+      (`adminRequests`, `adminSearchRequests`).
+- [x] F4 — Edit pending request: Edit button + modal on the "mine" tab of
+      `RequestsPage.tsx` (from/to/guests/note; PATCH while pending). Window
+      freeze still only applies once confirmed.
+- [x] F6 — `'expired'` added to `RequestStatus` in `types.ts`; `StatusBadge`
+      gives expired red (cancelled/completed now gray); `scripts/smoke.sh`
+      exercises the admin sweep (past pending → expired, past confirmed →
+      completed, past availability → expired) + user-token 403 guard.
+- [x] F7 — Registration spam throttle: `reg_attempts` collection
+      (`reg_attempts` base collection, NOT auto-dated — see gotchas),
+      `users.pb.js` create hook records the client IP and rejects > N
+      attempts/hour (env `REG_MAX_PER_HOUR`, default 10). Smoke top-ups rows
+      via the admin API then asserts the 403.
+- [x] F8 — Availability sweep: `'expired'` added to `availability` status
+      (migration `1765500005`), `runSweep` flips `status='available' && to <=
+      now` → `expired`; `AvailabilityRow` shows an expired badge (no cancel);
+      i18n `spotsStatusExpired`.
+
+New gotchas from this round:
+
+- `e.requestInfo()` in PB 0.39 exposes `headers` with **underscore keys**
+  (`x_forwarded_for`, `x_forwarded_proto`) and **no `remoteAddr`**. Values can
+  be strings or arrays. Use `h.pbDateTime()` (not JS Dates) as `findRecordsByFilter`
+  params when filtering `createdAt`-style fields — a JS Date serializes to ISO
+  `"T"` separators while PB stores `" "`-separated datetimes, so string
+  comparison makes `>=` filters silently match nothing (`" " < "T"`).
+- Base collections in this PB build do NOT auto-add `createdAt`/`updatedAt`;
+  define them explicitly as autodate fields (see `reg_attempts` in migration
+  `1765500005` / backfill `1765500006`).
+- CRITICAL rule semantics: in PB an EMPTY STRING collection rule (`""`) means
+  access for EVERYONE (public), NOT superuser-only — only `null` (locked)
+  restricts to superusers (superusers bypass rules). Several collections were
+  shipped with `""` intending "superuser-only" (spots create/update/delete,
+  users.delete, requests.delete, reg_attempts all) = anyone could create/edit/
+  delete spots or delete users. Fixed in migration `1765500007`; smoke asserts
+  anonymous create/update/delete → 403. Note the JSVM exposes empty rules as
+  `null`, so don't value-sniff for `""` in migrations — set the known
+  admin-only rules to `null` explicitly.
+- The `req` helper in `scripts/smoke.sh` takes exactly `method url [body] [token]`
+  — do NOT pass an empty `""` placeholder between body and token (it shifts the
+  token to position 5 and silently sends unauthenticated requests).
+
+Notes from this round:
+
+- New helpers in `helpers.js`: `assertSpotOwner` (F1 — loads the spot, requires
+  `spot.owner === auth.id`, superuser bypass, throws 403/400) and `pbDateTime`
+  (F7 — serializes a JS Date to PB's space-separated datetime format for
+  `findRecordsByFilter` params; JS Dates serialize with a "T" and break `>=`).
+- `scripts/smoke.sh` now runs 59 checks: the new security assertions create a
+  throwaway spot via the admin token so the anon create/update/delete 403
+  checks run deterministically even on an empty DB (the throttle test does the
+  same via reg_attempts top-up rows, then cleans them).
+- F0/F2/F4 were verified in the browser against the running stack: offer→confirm
+  and cancel both POST 200 with UI updates; the admin `/admin/requests` page
+  renders with search/building/status filters and a working CSV export; the
+  Edit modal prefills and PATCHes a pending request.
+
+Decisions: confirm route stays flexible (host may offer a spot without declared
+availability — no overlap requirement on confirm). Contact sharing on confirm
+(F3) was explicitly skipped this round.
 
 Verification: `cd web && npm run build`, `node --check pb/pb_hooks/*.js`,
 rebuild with the `-f docker-compose.ci.yml` override, then

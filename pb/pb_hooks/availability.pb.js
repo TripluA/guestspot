@@ -3,7 +3,9 @@
 
 onRecordCreateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
-  if (!e.hasSuperuserAuth()) {
+  const isSuper = e.hasSuperuserAuth()
+  if (!isSuper) {
+    h.assertSpotOwner(e.app, e.record.getString("spot"), e.auth, false)
     e.record.set("owner", e.auth ? e.auth.id : "")
   }
   h.checkOverlap(
@@ -18,6 +20,9 @@ onRecordCreateRequest((e) => {
 
 onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
+  if (!e.hasSuperuserAuth()) {
+    h.assertSpotOwner(e.app, e.record.getString("spot"), e.auth, false)
+  }
   const status = e.record.getString("status")
   const prevStatus = e.record.original().getString("status")
   if (prevStatus === "cancelled" && status !== prevStatus) {

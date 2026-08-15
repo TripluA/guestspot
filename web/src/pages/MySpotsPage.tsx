@@ -129,6 +129,7 @@ function AvailabilityRow({
 }) {
   const [busy, setBusy] = useState(false)
   const cancelled = a.status === 'cancelled'
+  const expired = a.status === 'expired'
   const past = isPast(a.to)
 
   async function cancel() {
@@ -151,12 +152,14 @@ function AvailabilityRow({
         {a.reason && <p className="text-xs text-gray-500 dark:text-gray-400">{a.reason}</p>}
       </div>
       <div className="flex items-center gap-2">
-        {cancelled ? (
+        {expired ? (
+          <Badge color="red">{t('spotsStatusExpired')}</Badge>
+        ) : cancelled ? (
           <Badge color="red">{t('spotsStatusCancelled')}</Badge>
         ) : (
           <Badge color="green">{t('spotsStatusAvailable')}</Badge>
         )}
-        {!cancelled && !past && (
+        {!expired && !cancelled && !past && (
           <Button size="sm" variant="secondary" loading={busy} onClick={() => void cancel()}>
             {t('spotsCancelAvailability')}
           </Button>

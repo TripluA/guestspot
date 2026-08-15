@@ -79,6 +79,7 @@ export default {
   reqOfferHint: 'Alege unul dintre locurile tale liber în această perioadă.',
   reqNoOfferable: 'Niciun loc disponibil de oferit în această perioadă.',
   reqCancel: 'Anulează cererea',
+  reqEdit: 'Editează cererea',
   reqComplete: 'Marchează finalizat',
   reqStatusPending: 'În așteptare',
   reqStatusConfirmed: 'Confirmat',
@@ -104,6 +105,7 @@ export default {
   spotsCancelAvailability: 'Anulează',
   spotsStatusAvailable: 'Disponibil',
   spotsStatusCancelled: 'Anulat',
+  spotsStatusExpired: 'Expirat',
   spotsAvailabilityCancelConfirm: 'Anulezi această perioadă de disponibilitate?',
 
    // profile
@@ -135,6 +137,7 @@ export default {
   adminOverview: 'Prezentare',
   adminApprovals: 'Aprobări',
   adminUsers: 'Utilizatori',
+  adminRequests: 'Cereri',
   adminSpots: 'Locuri',
   adminPending: 'În așteptare',
   adminApprove: 'Aprobă',
@@ -162,6 +165,7 @@ export default {
   adminSpotEnabled: 'Activat',
   adminSpotOwner: 'Proprietar',
   adminSearchSpots: 'Caută loc sau bloc…',
+  adminSearchRequests: 'Caută solicitant, loc sau notă…',
   adminSave: 'Salvează',
   adminDeleteSpotConfirm: 'Ștergi acest loc?',
   adminRejectUserConfirm: 'Ștergi această înregistrare?',

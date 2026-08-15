@@ -80,6 +80,22 @@ module.exports = (function () {
     const d = new Date(s)
     return isNaN(d.getTime()) ? null : d
   }
+  // Serialize a JS Date back to PB's "2006-01-02 15:04:05.000Z" format. Filters
+  // MUST compare PB datetimes with this format: passing a JS Date as a filter
+  // param serializes to ISO "T" separators, which breaks string comparison
+  // (e.g. "2026-08-15 11:30:05.000Z" >= "2026-08-15T10:30:56.000Z" is false
+  // because " " < "T", even though 11:30 is later).
+  function pbDateTime(date) {
+    const d = date instanceof Date && !isNaN(date.getTime()) ? date : new Date()
+    return (
+      d.getUTCFullYear() + "-" +
+      pad2(d.getUTCMonth() + 1) + "-" +
+      pad2(d.getUTCDate()) + " " +
+      pad2(d.getUTCHours()) + ":" +
+      pad2(d.getUTCMinutes()) + ":" +
+      pad2(d.getUTCSeconds()) + ".000Z"
+    )
+  }
 
   function pad2(n) {
     return ("0" + n).slice(-2)
@@ -156,6 +172,18 @@ module.exports = (function () {
 
   function loadSpot(app, id) {
     return id ? app.findRecordById("spots", id) : null
+  }
+
+  // Throws if the authenticated user does not own the given spot (superusers
+  // bypass). Used to keep availability rows tied to real spot owners.
+  function assertSpotOwner(app, spotId, auth, isSuper) {
+    const spot = loadSpot(app, spotId)
+    if (!spot) throw new BadRequestError("This spot does not exist.")
+    if (isSuper) return spot
+    if (!auth || spot.getString("owner") !== auth.id) {
+      throw new ForbiddenError("You can only declare availability for spots you own.")
+    }
+    return spot
   }
 
   function overlappingConfirmed(app, spotId, from, to) {
@@ -265,6 +293,18 @@ module.exports = (function () {
         )
       }
     }
+
+    // Availability windows that have fully passed are no longer offerable.
+    const availExpired = app.findRecordsByFilter(
+      "availability",
+      "status = 'available' && to <= {:now}",
+      "", 500, 0,
+      { now: now }
+    )
+    for (let i = 0; i < availExpired.length; i++) {
+      availExpired[i].set("status", "expired")
+      app.save(availExpired[i])
+    }
   }
 
   return {
@@ -272,6 +312,7 @@ module.exports = (function () {
     esc: esc,
     appURL: appURL,
     parseDT: parseDT,
+    pbDateTime: pbDateTime,
     fmtRange: fmtRange,
     gcalURL: gcalURL,
     sendMail: sendMail,
@@ -282,6 +323,7 @@ module.exports = (function () {
     isFutureEnough: isFutureEnough,
     matchingOwners: matchingOwners,
     checkOverlap: checkOverlap,
+    assertSpotOwner: assertSpotOwner,
     rangeError: rangeError,
     assertApproved: assertApproved,
     runSweep: runSweep,

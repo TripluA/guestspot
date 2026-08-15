@@ -180,7 +180,7 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
       ? 'green'
       : status === 'pending'
         ? 'amber'
-        : status === 'cancelled'
+        : status === 'expired'
           ? 'red'
           : 'gray'
   return <Badge color={color as 'green' | 'amber' | 'red' | 'gray'}>{label ?? status}</Badge>}
