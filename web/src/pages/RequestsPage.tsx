@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus } from 'lucide-react'
 import { pb } from '../lib/pb'
@@ -34,27 +34,36 @@ export default function RequestsPage() {
 
   const [showNew, setShowNew] = useState(false)
   const [offering, setOffering] = useState<GuestRequestRecord | null>(null)
+  const isRefreshing = useRef(false)
 
   const refresh = useCallback(async () => {
-    if (!user) return
-    const [boardRes, mineRes, spotsRes] = await Promise.all([
-      pb.collection('requests').getFullList<GuestRequestRecord>({
+    if (!user || isRefreshing.current) return
+    isRefreshing.current = true
+    try {
+      const boardRes = await pb.collection('requests').getFullList<GuestRequestRecord>({
         sort: '-createdAt',
         expand: 'requester,spot,confirmer',
         filter: "status != 'cancelled'",
-      }),
-      pb.collection('requests').getFullList<GuestRequestRecord>({
+      })
+      const mineRes = await pb.collection('requests').getFullList<GuestRequestRecord>({
         sort: '-createdAt',
         expand: 'requester,spot,confirmer',
         filter: `requester = "${user.id}"`,
-      }),
-      pb.collection('spots').getFullList<SpotRecord>({
+      })
+      const spotsRes = await pb.collection('spots').getFullList<SpotRecord>({
         filter: `owner = "${user.id}"`,
-      }),
-    ])
-    setRequests(boardRes)
-    setMine(mineRes)
-    setMySpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
+      })
+      
+      setRequests(boardRes)
+      setMine(mineRes)
+      setMySpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
+    } catch (err) {
+      if ((err as any)?.status !== 0) {
+        throw err
+      }
+    } finally {
+      isRefreshing.current = false
+    }
   }, [user])
 
   useEffect(() => {

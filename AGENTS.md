@@ -33,6 +33,20 @@ contexts for the CI smoke job.
   migrations are baked into the image — editing them requires a CI push + pull.
 - Admin creds come from `.env` (PB_ADMIN_EMAIL/PB_ADMIN_PASSWORD); compose
   defaults are only fallbacks.
+- `docker compose up -d --build` alone SILENTLY does nothing — `docker-compose.yml`
+  is pull-only. Local rebuilds MUST use the `-f docker-compose.ci.yml` override,
+  otherwise the running image is stale and frontend/PB changes never deploy
+  (detectable via the unchanged Vite asset hash in browser network tab).
+- The `web` nginx proxy MUST: set `Host $http_host` (not `$host`, which strips
+  the port and breaks PB redirects), keep `absolute_redirect off`, and set
+  `proxy_read_timeout 24h` + `proxy_buffering off` so the `/api/realtime` SSE
+  stream isn't killed by the 60s default.
+- `pb.autoCancellation(false)` is set globally in `web/src/lib/pb.ts` — the JS
+  SDK's auto-cancel races against subscription-driven refreshes and aborts
+  list/create requests (`ClientResponseError 0`). Keep it disabled; guard
+  concurrent refreshes with a ref instead.
+- `scripts/smoke.sh` does NOT source `.env` — run with
+  `set -a; source .env; set +a` first or admin login falls back to `change-me`.
 
 ## Current work plan (started 2026-08-14) — check git log before assuming done
 
