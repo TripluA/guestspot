@@ -306,3 +306,53 @@ Verification: `cd web && npm run build`, `cd web && npm test`,
 `node scripts/check-i18n.mjs`, `node --check pb/pb_hooks/*.js`, then rebuild
 with the `-f docker-compose.ci.yml` override and
 `set -a; source .env; set +a; bash scripts/smoke.sh` (63 checks pass).
+
+## Work plan (started 2026-08-16) — dual-role accounts
+
+One email+password can be BOTH a resident (`users`) and an admin
+(`_superusers`) — separate collection records, no cross-collection uniqueness.
+The PocketBase SDK keeps a single token, so the frontend caches both sessions
+and swaps the active one.
+
+- `web/src/lib/dualAuth.ts` — localStorage store (`guestspot_dual_auth`) with
+  `{ email, user:{token,model}, admin:{token,model}, active }`; get/set/clear
+  + unit tests.
+- `web/src/auth.tsx` — `Session.dual` flag, `switchRole('user'|'admin')`
+  (swaps token into `pb.authStore` + best-effort `authRefresh` to rotate the
+  cached token), `signOut()` clears the dual store too.
+- `web/src/pages/LoginPage.tsx` — probes BOTH roles on a throwaway client
+  (`new PocketBase(baseURL, new BaseAuthStore())`) BEFORE touching the main
+  `pb.authStore`; if the same credentials authenticate `users` and
+  `_superusers` it shows a chooser ("Continue as resident / Continue as admin",
+  keys `loginDualTitle`/`loginAsResident`/`loginAsAdmin`). Single-role flows
+  unchanged. The probe matters: authenticating roles on the main client races
+  the chooser render (the session `onChange` fires across the `await` boundary
+  and the login redirect kicks in before `pendingDual` is set).
+- `web/src/App.tsx` — `EnsureRole` guard swaps the token per area (admin pages
+  run with the superuser token, user pages with the users token, so records are
+  never misattributed); `RequireUser`/`RequireAdmin` let `dual` identities into
+  both areas.
+- `web/src/components/Layout.tsx` — the "Admin" sidebar/bottom-nav link now
+  shows for `dual` too (not just `isAdmin`); `AdminLayout`'s "Dashboard" link
+  goes back via the guards.
+
+Gotchas / decisions:
+
+- `switchRole` must force-close the realtime SSE stream BEFORE swapping the
+  token: `;(pb.realtime as unknown as { disconnect: () => void }).disconnect()`.
+  The stream is opened with the previous role's auth and PB rejects it once the
+  token changes ("current and previous request authorization don't match"). The
+  method is typed `private` in the SDK but is the only way to close the
+  EventSource synchronously; `connect()` re-opens it on the next `subscribe()`.
+- A single-role resident login logs a harmless 400 on
+  `/_superusers/auth-with-password` — that's the probe checking whether the
+  email is also an admin. Expected, caught, ignore.
+- Resident and admin passwords are SEPARATE hashes: changing the resident
+  password (Profile or admin edit) does NOT change the admin password, and vice
+  versa. Reconcile via `/admin/settings` (needs the old password) or the
+  `.env` upsert on next PB container start (`PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD`).
+- The login chooser fires only when BOTH collections authenticate with the same
+  credentials. A resident-only or admin-only email never sees it.
+- The `guestspot_dual_auth` store is only cleared on `signOut`; if the admin
+  changes their superuser email in Settings the cached dual session goes stale
+  until the next login.

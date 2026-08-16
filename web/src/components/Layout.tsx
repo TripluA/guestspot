@@ -60,7 +60,7 @@ const navItems = [
 
 export default function Layout() {
   const { t } = useTranslation()
-  const { user, isAdmin } = useSession()
+  const { user, isAdmin, dual } = useSession()
 
   return (
     <div className="flex min-h-full flex-col">
@@ -107,7 +107,7 @@ export default function Layout() {
                 {t(item.label)}
               </NavLink>
             ))}
-            {isAdmin && (
+            {(isAdmin || dual) && (
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
@@ -154,6 +154,20 @@ export default function Layout() {
               {t(item.label)}
             </NavLink>
           ))}
+          {(isAdmin || dual) && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                cn(
+                  'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
+                  isActive ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400',
+                )
+              }
+            >
+              <Shield className="size-5" />
+              {t('navAdmin')}
+            </NavLink>
+          )}
         </div>
       </nav>
     </div>

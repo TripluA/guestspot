@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { SessionProvider, useSession } from './auth'
+import { SessionProvider, switchRole, useSession } from './auth'
+import type { Role } from './lib/dualAuth'
 import { Spinner } from './components/ui'
 import { ToastProvider } from './components/feedback'
 import Layout from './components/Layout'
@@ -19,19 +20,38 @@ import SpotsPage from './admin/SpotsPage'
 import SettingsPage from './admin/SettingsPage'
 import AuditPage from './admin/AuditPage'
 
-function RequireUser({ children }: { children: ReactNode }) {
-  const { user, isAdmin, loading } = useSession()
-  if (loading) return <Spinner />
-  if (isAdmin) return <Navigate to="/admin" replace />
-  if (!user) return <Navigate to="/login" replace />
+// Swaps the active session to the role the guarded area expects. Needed for
+// dual-role identities (same email as resident + admin): admin pages must run
+// with the superuser token and user pages with the users token.
+function EnsureRole({ role, children }: { role: Role; children: ReactNode }) {
+  const { isAdmin, dual, loading } = useSession()
+  const [switching, setSwitching] = useState(false)
+  const targetActive = role === 'user' ? !isAdmin : isAdmin
+
+  useEffect(() => {
+    if (dual && !targetActive && !switching) {
+      setSwitching(true)
+      void switchRole(role).finally(() => setSwitching(false))
+    }
+  }, [dual, targetActive, switching, role])
+
+  if (loading || (switching && !targetActive)) return <Spinner />
   return <>{children}</>
 }
 
-function RequireAdmin({ children }: { children: ReactNode }) {
-  const { user, isAdmin, loading } = useSession()
+function RequireUser({ children }: { children: ReactNode }) {
+  const { user, isAdmin, dual, loading } = useSession()
   if (loading) return <Spinner />
-  if (!isAdmin) return <Navigate to={user ? '/app' : '/login'} replace />
-  return <>{children}</>
+  if (isAdmin && !dual) return <Navigate to="/admin" replace />
+  if (!user && !dual) return <Navigate to="/login" replace />
+  return <EnsureRole role="user">{children}</EnsureRole>
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, isAdmin, dual, loading } = useSession()
+  if (loading) return <Spinner />
+  if (!isAdmin && !dual) return <Navigate to={user ? '/app' : '/login'} replace />
+  return <EnsureRole role="admin">{children}</EnsureRole>
 }
 
 function AppRoutes() {

@@ -18,6 +18,8 @@ Then open `http://localhost:8080` (port configurable via `WEB_PORT`).
 
 On every boot the backend creates/updates an admin superuser from `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD`. If a `.env` file exists, its values override the compose defaults — sign in with **those** values. There is a single login form at `/login`: it tries resident credentials first, then falls back to the admin superuser. The admin panel also lives at `/_/` (or browse to `/admin` after signing in as admin).
 
+A single identity can be **both** a resident and an admin: set `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD` to your resident account (same password) and the login form will detect that the credentials work for both roles and ask which one you want to continue as. Browsing between `/app` (resident) and `/admin` swaps the active session automatically, so admin actions are never attributed to your resident account. The two passwords are stored as separate hashes — changing the resident password does not change the admin one (and vice versa).
+
 > Residents register themselves and an admin approves them; approved residents sign in on the same `/login` page.
 
 ## Configuration
@@ -26,7 +28,7 @@ Copy `.env.example` to `.env` and adjust. Placeholder values like `CHANGE_ME_STR
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | Admin superuser, created/updated on every boot | `admin@example.com` / `change-me` (fallback when unset; a `.env` file always overrides) |
+| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | Admin superuser, created/updated on every boot. May match a resident account's email/password to make that identity an admin too | `admin@example.com` / `change-me` (fallback when unset; a `.env` file always overrides) |
 | `PUBLIC_URL` | Public app URL, used in email links | `http://localhost:8080` |
 | `MAIL_FROM` / `MAIL_SENDER_NAME` | Sender for notification emails | `GuestSpot <noreply@example.com>` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_TLS` / `SMTP_AUTH_METHOD` | SMTP for transactional emails (empty host disables email) | empty / `587` / `false` / `PLAIN` |
@@ -45,6 +47,15 @@ To change the admin password, edit `PB_ADMIN_PASSWORD` in `.env` and run `docker
 - When a request is submitted, owners whose availability overlaps get an email and can offer their spot. The first confirm wins; overlapping/conflicted spots are rejected.
 - Requests can be cancelled (by the requester) or marked **completed** once the visit is over.
 - **Only registrations** are approved by the admin — spot requests are never gated by an admin.
+
+### Dual-role accounts
+
+One email+password can be both a resident (`users`) and an admin (`_superusers`) — the two are separate records with no cross-collection uniqueness, and the frontend caches both sessions (`guestspot_dual_auth` in `localStorage`) and swaps the active one. On login, if the same credentials authenticate both collections, a chooser asks where to continue (resident `/app` or admin `/admin`); once signed in, the sidebar/dashboard links switch between the two without re-authenticating. Resident-only and admin-only accounts never see the chooser.
+
+Gotchas:
+
+- The resident and admin passwords are **separate hashes**: changing one does not change the other. Reconcile them via the admin *Settings* page (needs the current admin password) or by setting `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD` in `.env` and restarting.
+- The cached dual session is only cleared on sign-out; changing the admin email in Settings makes the cached session stale until the next login.
 
 ## Development
 
