@@ -256,6 +256,35 @@ check "$( [ "$(body_of "$R" | json "d['status']")" = "completed" ] && echo 1 || 
 R=$(req GET "/api/collections/availability/records/${AVAIL_PAST}" "" "$AT")
 check "$( [ "$(body_of "$R" | json "d['status']")" = "expired" ] && echo 1 || echo 0 )" "past availability window expired"
 
+echo "==> same-day future request survives the sweep (runSweep datetime bug)"
+# A confirmed request whose window ends later today (same UTC date) must NOT be
+# completed early. Guards runSweep passing a raw JS Date ("T" serialization)
+# which made `to <= now` match every record sharing the current UTC day.
+SD_WINDOW=$(python3 -c "
+from datetime import datetime, timedelta, timezone
+now = datetime.now(timezone.utc)
+late = now.replace(hour=23, minute=50, second=0, microsecond=0)
+early = now + timedelta(hours=1)
+if late > now and early < late:
+    print(early.strftime('%Y-%m-%d %H:%M:%S.000Z') + '|' + late.strftime('%Y-%m-%d %H:%M:%S.000Z'))
+")
+if [ -n "$SD_WINDOW" ]; then
+  FROM_SD="${SD_WINDOW%%|*}"
+  TO_SD="${SD_WINDOW##*|}"
+  R=$(req POST /api/collections/requests/records \
+    "{\"from\":\"${FROM_SD}\",\"to\":\"${TO_SD}\",\"guests\":1}" "$T1")
+  REQ_SD=$(body_of "$R" | json "d['id']")
+  check "$( [ -n "$REQ_SD" ] && echo 1 || echo 0 )" "same-day future request created (id=$REQ_SD)"
+  R=$(req POST "/api/guestspot/requests/${REQ_SD}/confirm" "{\"spot\":\"${SPOT_ID}\"}" "$T2")
+  check "$( [ "$(body_of "$R" | json "d['status']")" = "confirmed" ] && echo 1 || echo 0 )" "same-day future request confirmed"
+  R=$(req POST "/api/guestspot/admin/sweep" "" "$AT")
+  check "$( [ "$(code_of "$R")" = "200" ] && echo 1 || echo 0 )" "sweep after same-day future request returns 200"
+  R=$(req GET "/api/collections/requests/records/${REQ_SD}" "" "$T1")
+  check "$( [ "$(body_of "$R" | json "d['status']")" = "confirmed" ] && echo 1 || echo 0 )" "same-day future request NOT completed early"
+else
+  echo "    skipped: too close to UTC midnight"
+fi
+
 echo "==> registration spam throttle"
 R=$(req GET '/api/collections/reg_attempts/records?perPage=100' "" "$AT")
 THROTTLE_IP=$(body_of "$R" | json "d['items'][0]['ip'] if d['items'] else ''")

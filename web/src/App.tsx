@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { SessionProvider, useSession } from './auth'
 import { Spinner } from './components/ui'
+import { ToastProvider } from './components/feedback'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -16,6 +17,7 @@ import UsersPage from './admin/UsersPage'
 import AdminRequestsPage from './admin/RequestsPage'
 import SpotsPage from './admin/SpotsPage'
 import SettingsPage from './admin/SettingsPage'
+import AuditPage from './admin/AuditPage'
 
 function RequireUser({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useSession()
@@ -63,6 +65,7 @@ function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="requests" element={<AdminRequestsPage />} />
         <Route path="spots" element={<SpotsPage />} />
+        <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
@@ -72,8 +75,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <SessionProvider>
-      <AppRoutes />
-    </SessionProvider>
+    <ToastProvider>
+      <SessionProvider>
+        <AppRoutes />
+      </SessionProvider>
+    </ToastProvider>
   )
 }

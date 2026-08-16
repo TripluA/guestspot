@@ -28,6 +28,15 @@ jobs:
           npm ci
           npm run build
 
+      - name: Frontend unit tests (vitest)
+        working-directory: web
+        run: |
+          npm test
+
+      - name: i18n parity & usage check
+        run: |
+          node scripts/check-i18n.mjs
+
       - name: PocketBase JS syntax check
         run: |
           for f in pb/pb_hooks/*.pb.js pb/pb_migrations/*.js pb/pb_hooks/*.js; do

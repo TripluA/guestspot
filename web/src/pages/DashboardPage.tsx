@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarPlus, Car, CalendarClock, ChevronRight } from 'lucide-react'
@@ -17,11 +17,15 @@ export default function DashboardPage() {
   const [myRequests, setMyRequests] = useState<GuestRequestRecord[]>([])
   const [board, setBoard] = useState<GuestRequestRecord[]>([])
   const [boardTotal, setBoardTotal] = useState(0)
+  const isRefreshing = useRef(false)
 
   useEffect(() => {
     if (!user) return
     let active = true
-    ;(async () => {
+
+    const load = async () => {
+      if (isRefreshing.current) return
+      isRefreshing.current = true
       try {
         const [spots, requests, boardRes] = await Promise.all([
           pb.collection('spots').getFullList<SpotRecord>({
@@ -44,11 +48,21 @@ export default function DashboardPage() {
         setBoard(boardRes.items)
         setBoardTotal(boardRes.totalItems)
       } finally {
-        if (active) setLoading(false)
+        isRefreshing.current = false
       }
-    })()
+    }
+
+    void load().finally(() => {
+      if (active) setLoading(false)
+    })
+
+    const unsubs = ['requests', 'availability', 'spots'].map((coll) =>
+      pb.collection(coll).subscribe('*', () => void load()).catch(() => () => {}),
+    )
+
     return () => {
       active = false
+      void Promise.all(unsubs).then((fns) => fns.forEach((fn) => fn && fn()))
     }
   }, [user])
 

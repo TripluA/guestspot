@@ -5,6 +5,7 @@ import { pb } from '../lib/pb'
 import { cmpSpotNumber } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
 import { downloadCSV } from '../lib/csv'
+import { confirmDialog } from '../components/feedback'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import type { SpotRecord, UserRecord } from '../types'
 
@@ -108,7 +109,13 @@ export default function SpotsPage() {
   }
 
   async function remove(spot: SpotRecord) {
-    if (!window.confirm(t('adminDeleteSpotConfirm'))) return
+    const ok = await confirmDialog({
+      title: t('adminDelete'),
+      message: t('adminDeleteSpotConfirm'),
+      confirmLabel: t('adminDelete'),
+      danger: true,
+    })
+    if (!ok) return
     setBusyId(spot.id)
     try {
       await pb.collection('spots').delete(spot.id)

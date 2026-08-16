@@ -22,11 +22,15 @@ onRecordUpdateRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth()) {
     h.assertSpotOwner(e.app, e.record.getString("spot"), e.auth, false)
+    // The owner cannot reassign their availability row to another user.
+    e.record.set("owner", e.auth.id)
   }
   const status = e.record.getString("status")
   const prevStatus = e.record.original().getString("status")
-  if (prevStatus === "cancelled" && status !== prevStatus) {
-    throw new BadRequestError("Cancelled availability cannot be reactivated.")
+  // A cancelled OR expired row is terminal for a user: reactivating it would
+  // let expired windows be re-offered (and resurrect cancelled ones).
+  if (prevStatus !== "available" && status === "available") {
+    throw new BadRequestError("Availability that is cancelled or expired cannot be reactivated.")
   }
   h.checkOverlap(
     e.app,

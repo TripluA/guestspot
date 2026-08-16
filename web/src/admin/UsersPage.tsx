@@ -4,6 +4,7 @@ import { Download, Pencil } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
 import { downloadCSV } from '../lib/csv'
+import { confirmDialog } from '../components/feedback'
 import { Badge, Button, Card, Field, Input, Modal, Select, Spinner } from '../components/ui'
 import { fmtDT } from '../lib/format'
 import type { Building, Language, UserRecord } from '../types'
@@ -60,7 +61,13 @@ export default function UsersPage() {
   }
 
   async function remove(u: UserRecord) {
-    if (!window.confirm(t('adminRejectUserConfirm'))) return
+    const ok = await confirmDialog({
+      title: t('adminDelete'),
+      message: t('adminRejectUserConfirm'),
+      confirmLabel: t('adminDelete'),
+      danger: true,
+    })
+    if (!ok) return
     setBusyId(u.id)
     try {
       await pb.collection('users').delete(u.id)

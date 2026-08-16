@@ -9,6 +9,7 @@ export default {
   error: 'Something went wrong. Please try again.',
   building: 'Building',
   spot: 'Spot',
+  owner: 'Owner',
   noData: 'Nothing here yet.',
 
   // auth
@@ -94,6 +95,13 @@ export default {
   reqCreated: 'Submitted',
   reqUpdateError: 'Could not update the request.',
   reqOfferError: 'Could not offer this spot.',
+  reqBuildingAll: 'All buildings',
+  reqContactHost: 'Contact host',
+  reqContactTitle: 'Host contact',
+  reqContactHostName: 'Host',
+  reqContactHostPhone: 'Phone',
+  reqContactError: 'Could not load contact details.',
+  close: 'Close',
 
   // my spots
   spotsTitle: 'My spots',
@@ -107,6 +115,16 @@ export default {
   spotsStatusCancelled: 'Cancelled',
   spotsStatusExpired: 'Expired',
   spotsAvailabilityCancelConfirm: 'Cancel this availability window?',
+
+  // notifications
+  notificationsTitle: 'Notifications',
+  notificationsEmpty: 'No notifications yet.',
+  notificationsMarkAllRead: 'Mark all read',
+  notificationNewRequest: 'A neighbour needs a parking spot',
+  notificationConfirmed: 'Your request was confirmed',
+  notificationCancelled: 'A request involving your spot was cancelled',
+  notificationExpired: 'No host found for your request',
+  notificationHostRemoved: 'The host for your request was removed',
 
    // profile
    profileTitle: 'Profile',
@@ -168,6 +186,9 @@ export default {
   adminSearchRequests: 'Search requester, spot or note…',
   adminSave: 'Save',
   adminDeleteSpotConfirm: 'Delete this spot?',
+  adminDeleteRequestConfirm: 'Delete this request?',
+  adminAudit: 'Audit log',
+  adminSearchAudit: 'Search actor, action or target…',
    adminRejectUserConfirm: 'Delete this registration?',
    adminUnassigned: 'Unassigned',
    adminExport: 'Export CSV',
@@ -191,6 +212,5 @@ export default {
    editUserResetPassword: 'Reset password (leave blank to keep)',
    editUserPassword: 'New password (admin reset)',
    editUserApproved: 'Approved',
-   editUserBuilding: 'Building',
    editUserLanguage: 'Language',
 }

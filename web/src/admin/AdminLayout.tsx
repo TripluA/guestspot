@@ -29,6 +29,7 @@ const tabs = [
   { to: '/admin/users', label: 'adminUsers', end: false },
   { to: '/admin/requests', label: 'adminRequests', end: false },
   { to: '/admin/spots', label: 'adminSpots', end: false },
+  { to: '/admin/audit', label: 'adminAudit', end: false },
   { to: '/admin/settings', label: 'navSettings', end: false },
 ]
 

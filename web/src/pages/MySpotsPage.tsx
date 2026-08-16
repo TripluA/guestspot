@@ -15,6 +15,7 @@ import {
 } from '../components/ui'
 import { fmtRange, isPast, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
+import { confirmDialog, useToast } from '../components/feedback'
 import type { AvailabilityRecord, SpotRecord } from '../types'
 
 export default function MySpotsPage() {
@@ -128,18 +129,25 @@ function AvailabilityRow({
   onChanged: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  const toast = useToast()
   const cancelled = a.status === 'cancelled'
   const expired = a.status === 'expired'
   const past = isPast(a.to)
 
   async function cancel() {
-    if (!window.confirm(t('spotsAvailabilityCancelConfirm'))) return
+    const ok = await confirmDialog({
+      title: t('spotsCancelAvailability'),
+      message: t('spotsAvailabilityCancelConfirm'),
+      confirmLabel: t('spotsCancelAvailability'),
+      danger: true,
+    })
+    if (!ok) return
     setBusy(true)
     try {
       await pb.collection('availability').update(a.id, { status: 'cancelled' })
       onChanged()
     } catch {
-      window.alert(t('error'))
+      toast.error(t('error'))
     } finally {
       setBusy(false)
     }

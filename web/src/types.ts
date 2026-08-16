@@ -54,6 +54,7 @@ export interface GuestRequestRecord {
   status: RequestStatus
   spot?: string
   confirmer?: string
+  reminded?: boolean
   createdAt: string
   updatedAt: string
   expand?: {
@@ -61,4 +62,31 @@ export interface GuestRequestRecord {
     spot?: SpotRecord
     confirmer?: UserRecord
   }
+}
+
+export type NotificationType =
+  | 'submitted'
+  | 'new_request'
+  | 'confirmed'
+  | 'cancelled'
+  | 'expired'
+  | 'host_removed'
+  | 'completed'
+  | 'reminder'
+
+export interface NotificationPayload {
+  request?: string
+  spot?: string
+  from?: string
+  to?: string
+}
+
+export interface NotificationRecord {
+  id: string
+  recipient: string
+  type: NotificationType
+  payload?: NotificationPayload | null
+  read: boolean
+  createdAt: string
+  updatedAt: string
 }

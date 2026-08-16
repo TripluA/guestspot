@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
 import { downloadCSV } from '../lib/csv'
+import { confirmDialog, useToast } from '../components/feedback'
 import { Badge, Button, Card, Input, Select, Spinner, StatusBadge } from '../components/ui'
 import { fmtDT, fmtRange } from '../lib/format'
 import type { Building, GuestRequestRecord } from '../types'
@@ -20,24 +21,25 @@ export default function RequestsPage() {
   const [building, setBuilding] = useState('all')
   const [status, setStatus] = useState('all')
   const [error, setError] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState('')
+  const toast = useToast()
+
+  const reload = async () => {
+    try {
+      const res = await pb.collection('requests').getFullList<GuestRequestRecord>({
+        sort: '-createdAt',
+        expand: 'requester,spot,confirmer',
+      })
+      setRequests(res)
+      setError(null)
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
+    }
+  }
 
   useEffect(() => {
-    let active = true
-    ;(async () => {
-      try {
-        const res = await pb.collection('requests').getFullList<GuestRequestRecord>({
-          sort: '-createdAt',
-          expand: 'requester,spot,confirmer',
-        })
-        if (active) setRequests(res)
-      } catch (err) {
-        if (active) setError(pbErrorMessage(err, t) || t('error'))
-      }
-    })()
-    return () => {
-      active = false
-    }
-  }, [t])
+    void reload()
+  }, [])
 
   const filtered = useMemo(() => {
     if (!requests) return []
@@ -82,6 +84,65 @@ export default function RequestsPage() {
         r.createdAt,
       ]),
     ])
+  }
+
+  async function cancelReq(r: GuestRequestRecord) {
+    const ok = await confirmDialog({
+      title: t('reqCancel'),
+      message: `${t('reqCancel')}?`,
+      confirmLabel: t('reqCancel'),
+      danger: true,
+    })
+    if (!ok) return
+    setBusyId(r.id)
+    try {
+      await pb.collection('requests').update(r.id, { status: 'cancelled', spot: '', confirmer: '' })
+      toast.success(t('reqCancel'))
+      await reload()
+    } catch (err) {
+      toast.error(pbErrorMessage(err, t) || t('error'))
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  async function completeReq(r: GuestRequestRecord) {
+    const ok = await confirmDialog({
+      title: t('reqComplete'),
+      message: `${t('reqComplete')}?`,
+      confirmLabel: t('reqComplete'),
+    })
+    if (!ok) return
+    setBusyId(r.id)
+    try {
+      await pb.collection('requests').update(r.id, { status: 'completed' })
+      toast.success(t('reqComplete'))
+      await reload()
+    } catch (err) {
+      toast.error(pbErrorMessage(err, t) || t('error'))
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  async function deleteReq(r: GuestRequestRecord) {
+    const ok = await confirmDialog({
+      title: t('adminDelete'),
+      message: t('adminDeleteRequestConfirm'),
+      confirmLabel: t('adminDelete'),
+      danger: true,
+    })
+    if (!ok) return
+    setBusyId(r.id)
+    try {
+      await pb.collection('requests').delete(r.id)
+      toast.success(t('adminDelete'))
+      await reload()
+    } catch (err) {
+      toast.error(pbErrorMessage(err, t) || t('error'))
+    } finally {
+      setBusyId('')
+    }
   }
 
   return (
@@ -146,6 +207,26 @@ export default function RequestsPage() {
                   {r.expand?.confirmer?.name ? ` · ${t('owner')} ${r.expand.confirmer.name}` : ''}
                 </p>
                 {r.note && <p className="mt-1 text-sm italic text-gray-500 dark:text-gray-400">“{r.note}”</p>}
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {r.status === 'pending' && (
+                  <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void cancelReq(r)}>
+                    {t('reqCancel')}
+                  </Button>
+                )}
+                {r.status === 'confirmed' && (
+                  <>
+                    <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void completeReq(r)}>
+                      {t('reqComplete')}
+                    </Button>
+                    <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void cancelReq(r)}>
+                      {t('reqCancel')}
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant="danger" loading={busyId === r.id} onClick={() => void deleteReq(r)}>
+                  {t('adminDelete')}
+                </Button>
               </div>
             </div>
           </Card>

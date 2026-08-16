@@ -46,6 +46,7 @@ onRecordAfterCreateSuccess((e) => {
     const owner = h.loadUser(e.app, owners[i].id)
     if (!owner) continue
     const olang = owner.getString("language") || "en"
+    h.notify(e.app, owner.id, "new_request", { request: req.id, from: from, to: to })
     h.sendMail(
       owner.getString("email"),
       h.t(olang, "mail.new_request.subject"),
@@ -79,6 +80,17 @@ onRecordUpdateRequest((e) => {
       ) {
         throw new BadRequestError("The time window of a confirmed request cannot be changed.")
       }
+    }
+    // Mirror the create hook: ownership/assignment fields can only be set by
+    // the system (or a superuser). A requester must not be able to forge
+    // requester/spot/confirmer on their pending request.
+    e.record.set("requester", prev.getString("requester"))
+    e.record.set("spot", prev.getString("spot"))
+    e.record.set("confirmer", prev.getString("confirmer"))
+    // A pending window cannot be pushed into the past (would let a request
+    // expire without ever being offerable).
+    if (prevStatus === "pending" && !h.isFutureEnough(e.record.getString("from"))) {
+      throw new BadRequestError("The start time must be in the future.")
     }
   }
 
@@ -120,6 +132,7 @@ routerAdd("POST", "/api/guestspot/requests/{id}/confirm", (e) => {
     const owner = h.loadUser(tx, e.auth.id)
     if (requester) {
       const lang = requester.getString("language") || "en"
+      h.notify(tx, requester.id, "confirmed", { request: req.id, spot: spot.getString("number"), from: from, to: to })
       h.sendMail(
         requester.getString("email"),
         h.t(lang, "mail.request_confirmed.subject"),
@@ -127,6 +140,9 @@ routerAdd("POST", "/api/guestspot/requests/{id}/confirm", (e) => {
         "<p><b>" + h.t(lang, "spot") + ":</b> " + h.esc(spot.getString("number")) +
         " (" + h.t(lang, "building") + " " + spot.getString("building") + ")</p>" +
         "<p><b>" + h.t(lang, "owner") + ":</b> " + h.esc(owner ? owner.getString("name") : "") + "</p>" +
+        (owner && owner.getString("phone")
+          ? "<p><b>" + h.t(lang, "mail.contact") + ":</b> " + h.esc(owner.getString("phone")) + "</p>"
+          : "") +
         "<p><b>" + h.fmtRange(from, to) + "</b></p>" +
         "<p><a href='" + h.gcalURL(
           from, to,
@@ -168,6 +184,11 @@ routerAdd("POST", "/api/guestspot/requests/{id}/cancel", (e) => {
     const confirmer = h.loadUser(e.app, req.getString("confirmer"))
     if (confirmer) {
       const clang = confirmer.getString("language") || "en"
+      h.notify(e.app, confirmer.id, "cancelled", {
+        request: req.id,
+        from: req.getString("from"),
+        to: req.getString("to"),
+      })
       h.sendMail(
         confirmer.getString("email"),
         h.t(clang, "mail.request_cancelled.subject"),
@@ -194,4 +215,30 @@ routerAdd("POST", "/api/guestspot/requests/{id}/complete", (e) => {
   req.set("status", "completed")
   e.app.save(req)
   return e.json(200, { success: true, id: req.id, status: "completed" })
+}, $apis.requireAuth("users"))
+
+// Host contact details for a confirmed request. Only the requester or the
+// host (confirmer) may fetch them — the phone number is hidden from everyone
+// else by the users enrich hook, so this is the controlled disclosure point.
+routerAdd("GET", "/api/guestspot/requests/{id}/contact", (e) => {
+  const h = require(__hooks + "/helpers.js")
+  h.assertApproved(e.auth)
+  const req = e.app.findRecordById("requests", e.request.pathValue("id"))
+  const isRequester = req.getString("requester") === e.auth.id
+  const isConfirmer = req.getString("confirmer") === e.auth.id
+  if (!isRequester && !isConfirmer) throw new ForbiddenError("Not allowed.")
+  if (req.getString("status") !== "confirmed") {
+    throw new BadRequestError("Contact details are only available for confirmed requests.")
+  }
+
+  const owner = h.loadUser(e.app, req.getString("confirmer"))
+  const spot = h.loadSpot(e.app, req.getString("spot"))
+  return e.json(200, {
+    host: owner ? owner.getString("name") : "",
+    hostPhone: owner ? owner.getString("phone") : "",
+    spot: spot ? spot.getString("number") : "",
+    building: spot ? spot.getString("building") : "",
+    from: req.getString("from"),
+    to: req.getString("to"),
+  })
 }, $apis.requireAuth("users"))

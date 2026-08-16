@@ -18,9 +18,11 @@ import {
 } from '../components/ui'
 import { fmtRange, fmtDT, localNowOffset, toPbDate, cmpSpotNumber, fromPbDate } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
+import { confirmDialog, useToast } from '../components/feedback'
 import type { GuestRequestRecord, SpotRecord } from '../types'
 
 const statusKey = (s: string) => 'reqStatus' + s.charAt(0).toUpperCase() + s.slice(1)
+const BUILDINGS = ['1', '2', '3', '4', '5', '6', '7', '8']
 
 export default function RequestsPage() {
   const { t } = useTranslation()
@@ -35,6 +37,7 @@ export default function RequestsPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [forMe, setForMe] = useState(false)
+  const [buildingFilter, setBuildingFilter] = useState('all')
 
   const [showNew, setShowNew] = useState(false)
   const [offering, setOffering] = useState<GuestRequestRecord | null>(null)
@@ -136,7 +139,11 @@ export default function RequestsPage() {
   )
 
   const offerable = offering ? offerableFor(offering) : []
-  const shownBoard = forMe ? requests.filter((r) => offerableFor(r).length > 0) : requests
+  const shownBoard = requests.filter((r) => {
+    if (forMe && offerableFor(r).length === 0) return false
+    if (buildingFilter !== 'all' && r.expand?.requester?.building !== buildingFilter) return false
+    return true
+  })
 
   if (loading || !user) return <Spinner />
 
@@ -175,7 +182,7 @@ export default function RequestsPage() {
 
       {tab === 'board' ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <input
                 type="checkbox"
@@ -185,10 +192,20 @@ export default function RequestsPage() {
               />
               {t('reqForMe')}
             </label>
-            <span className="text-sm text-gray-400 dark:text-gray-500">
-              {shownBoard.length}
-              {forMe ? ` / ${requests.length}` : ''}
-            </span>
+            <div className="flex items-center gap-2">
+              <Select className="w-28" value={buildingFilter} onChange={(e) => setBuildingFilter(e.target.value)}>
+                <option value="all">{t('reqBuildingAll')}</option>
+                {BUILDINGS.map((b) => (
+                  <option key={b} value={b}>
+                    {t('building')} {b}
+                  </option>
+                ))}
+              </Select>
+              <span className="text-sm text-gray-400 dark:text-gray-500">
+                {shownBoard.length}
+                {forMe ? ` / ${requests.length}` : ''}
+              </span>
+            </div>
           </div>
           {shownBoard.length === 0 && <EmptyState title={forMe ? t('reqEmptyForMe') : t('reqEmptyBoard')} />}
           {shownBoard.map((r) => {
@@ -267,16 +284,48 @@ function RequestCard({
   onChanged?: () => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [contact, setContact] = useState<{
+    host: string
+    hostPhone: string
+    spot: string
+    building: string
+  } | null>(null)
+  const [contactLoading, setContactLoading] = useState(false)
+  const toast = useToast()
+
+  async function openContact() {
+    setContactLoading(true)
+    try {
+      const res = await pb.send<{
+        host: string
+        hostPhone: string
+        spot: string
+        building: string
+      }>(`/api/guestspot/requests/${r.id}/contact`, { method: 'GET' })
+      setContact(res)
+    } catch (err) {
+      toast.error(pbErrorMessage(err, t) || t('reqContactError'))
+    } finally {
+      setContactLoading(false)
+    }
+  }
 
   async function run(action: 'cancel' | 'complete') {
     const msg = action === 'cancel' ? t('reqCancel') : t('reqComplete')
-    if (!window.confirm(`${msg}?`)) return
+    const ok = await confirmDialog({
+      title: msg,
+      message: `${msg}?`,
+      confirmLabel: msg,
+      danger: action === 'cancel',
+    })
+    if (!ok) return
     setBusy(true)
     try {
       await pb.send(`/api/guestspot/requests/${r.id}/${action}`, { method: 'POST' })
       onChanged?.()
+      toast.success(msg)
     } catch (err) {
-      window.alert(pbErrorMessage(err, t) || t('reqUpdateError'))
+      toast.error(pbErrorMessage(err, t) || t('reqUpdateError'))
     } finally {
       setBusy(false)
     }
@@ -317,6 +366,11 @@ function RequestCard({
               {t('reqEdit')}
             </Button>
           )}
+          {mine && r.status === 'confirmed' && (
+            <Button size="sm" variant="secondary" loading={contactLoading} onClick={() => void openContact()}>
+              {t('reqContactHost')}
+            </Button>
+          )}
           {mine && (r.status === 'pending' || r.status === 'confirmed') && (
             <Button size="sm" variant="secondary" loading={busy} onClick={() => void run('cancel')}>
               {t('reqCancel')}
@@ -329,6 +383,41 @@ function RequestCard({
           )}
         </div>
       </div>
+
+      {contact && (
+        <Modal open={!!contact} title={t('reqContactTitle')} onClose={() => setContact(null)}>
+          <h2 className="text-lg font-semibold">{t('reqContactTitle')}</h2>
+          <dl className="mt-3 space-y-2 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500 dark:text-gray-400">{t('reqContactHostName')}</dt>
+              <dd className="font-medium">{contact.host || '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500 dark:text-gray-400">{t('reqContactHostPhone')}</dt>
+              <dd className="font-medium">
+                {contact.hostPhone ? (
+                  <a className="text-teal-700 hover:underline dark:text-teal-300" href={`tel:${contact.hostPhone}`}>
+                    {contact.hostPhone}
+                  </a>
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-gray-500 dark:text-gray-400">{t('reqSpot')}</dt>
+              <dd className="font-medium">
+                {contact.spot} {t('building')} {contact.building}
+              </dd>
+            </div>
+          </dl>
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={() => setContact(null)}>
+              {t('close')}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </Card>
   )
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
+import { confirmDialog } from '../components/feedback'
 import { Badge, Button, Card, EmptyState, Spinner } from '../components/ui'
 import { fmtDT } from '../lib/format'
 import type { UserRecord } from '../types'
@@ -42,7 +43,13 @@ export default function ApprovalsPage() {
   }
 
   async function reject(u: UserRecord) {
-    if (!window.confirm(t('adminRejectUserConfirm'))) return
+    const ok = await confirmDialog({
+      title: t('adminReject'),
+      message: t('adminRejectUserConfirm'),
+      confirmLabel: t('adminReject'),
+      danger: true,
+    })
+    if (!ok) return
     setBusyId(u.id)
     try {
       await pb.collection('users').delete(u.id)

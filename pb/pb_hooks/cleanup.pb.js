@@ -1,30 +1,17 @@
 // Cleanup dangling references and cancel commitments when users/spots are
 // removed. NOTE: every handler is an isolated program and must require() its
-// own helpers (no file-level variables shared across .pb.js files, but helpers
-// defined locally in this file are fine).
-
-// Cancel a confirmed request (spot lost / host gone) and notify the requester.
-function cancelConfirmed(req, h, e) {
-  const requester = h.loadUser(e.app, req.getString("requester"))
-  req.set("status", "cancelled")
-  req.set("confirmer", "")
-  req.set("spot", "")
-  e.app.save(req)
-  if (requester) {
-    const lang = requester.getString("language") || "en"
-    h.sendMail(
-      requester.getString("email"),
-      h.t(lang, "mail.host_removed.subject"),
-      "<p>" + h.t(lang, "mail.host_removed.body") + "</p>" +
-      "<p><b>" + h.fmtRange(req.getString("from"), req.getString("to")) + "</b></p>"
-    )
-  }
-}
+// own helpers (no file-level variables or functions shared across .pb.js
+// files — handler bodies run in isolated JSVM executors and cannot see
+// module-scope functions, so all logic lives in helpers.js).
 
 // When a user is deleted:
 //  - detach their spots (owner -> "", availability rows cascade away);
 //  - cancel + clear the requests they confirmed (their own spot, now unassigned).
-onRecordAfterDeleteSuccess((e) => {
+//
+// This runs in onRecordDeleteRequest (BEFORE the delete): `confirmer` /
+// `owner` are relations that PB nulls out as part of the delete itself, so the
+// after-delete hook can no longer find these rows by `confirmer = {:id}`.
+onRecordDeleteRequest((e) => {
   const h = require(__hooks + "/helpers.js")
   const userId = e.record.id
 
@@ -43,7 +30,7 @@ onRecordAfterDeleteSuccess((e) => {
   for (let i = 0; i < requests.length; i++) {
     const req = requests[i]
     if (req.getString("status") === "confirmed") {
-      cancelConfirmed(req, h, e)
+      h.cancelConfirmed(e.app, req)
     } else {
       req.set("confirmer", "")
       e.app.save(req)
@@ -64,7 +51,7 @@ onRecordAfterDeleteSuccess((e) => {
   for (let i = 0; i < requests.length; i++) {
     const req = requests[i]
     if (req.getString("status") === "confirmed") {
-      cancelConfirmed(req, h, e)
+      h.cancelConfirmed(e.app, req)
     } else {
       req.set("spot", "")
       e.app.save(req)

@@ -11,7 +11,8 @@ contexts for the CI smoke job.
 - Frontend typecheck/build: `cd web && npm run build` (tsc --noEmit + vite)
 - PB hook syntax check: `node --check pb/pb_hooks/*.js`
 - Full stack + smoke: `docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build && bash scripts/smoke.sh`
-- No frontend test suite exists; `scripts/smoke.sh` is the E2E gate.
+- Frontend unit tests: `cd web && npm test` (vitest, node env); i18n parity check: `node scripts/check-i18n.mjs`.
+- `scripts/smoke.sh` is the E2E gate.
 
 ## Key conventions / gotchas
 
@@ -195,3 +196,113 @@ availability — no overlap requirement on confirm). Contact sharing on confirm
 Verification: `cd web && npm run build`, `node --check pb/pb_hooks/*.js`,
 rebuild with the `-f docker-compose.ci.yml` override, then
 `set -a; source .env; set +a; bash scripts/smoke.sh`.
+
+## Work plan (started 2026-08-15) — round 4: bugs, hardening & UX
+
+All tasks completed and committed.
+
+- [x] B1 — CRITICAL sweep bug: `runSweep` in `helpers.js` was passing a raw JS
+      Date as the `{:now}` filter param; PB serializes JS Dates with a `T` while
+      rows store `" "`-separated datetimes, so same-day records matched
+      regardless of time. Fixed with `h.pbDateTime(now)` (all three queries).
+      Smoke asserts a same-day-future request survives the sweep.
+- [x] B2 — Field-forgery guard on request update: `requests.pb.js`
+      `onRecordUpdateRequest` forces `requester`/`spot`/`confirmer` back to
+      their `prev` values for non-superusers and applies `isFutureEnough` on
+      pending edits (window can't be pushed into the past).
+- [x] B3 — Availability guards: `availability.pb.js` update hook forces
+      `owner` to `auth.id` for non-superusers and rejects reactivating a
+      cancelled/expired row (`prevStatus !== 'available' && status === 'available'`).
+- [x] O1 — CSV formula-injection: `web/src/lib/csv.ts` now exports a pure
+      `csvString()` that prefixes cells starting with `=`, `+`, `-`, `@` with
+      `'`; `downloadCSV` uses it.
+- [x] O2 — `reg_attempts` pruning: `runSweep` deletes throttle rows older than
+      24h (`createdAt < {:cutoff}`, pbDateTime param).
+- [x] O3 — Login throttling: `login_attempts` collection (migration
+      `1765500008`), `users.pb.js` `onRecordAuthWithPasswordRequest` keyed by
+      IP (`h.clientIP`), `LOGIN_MAX_PER_HOUR` env (default 20). Only guards the
+      `users` collection, not `_superusers`.
+- [x] O4 — `scripts/check-i18n.mjs`: en/ro key parity + `t('...')` usage scan
+      (fails on missing/undefined keys, warns on unused). Wired into the CI
+      `lint` job. Dead `editUserBuilding` key dropped; `owner` key added.
+- [x] O5 — Vitest unit tests for `format.ts`, `pbError.ts`, `csv.ts`
+      (`web/src/lib/*.test.ts`, 20 tests). `npm test` script added; `vitest`
+      devDependency; `vitest.config.ts` (node env); CI `lint` job runs `npm test`.
+- [x] U1 — Toast + confirm-dialog system (`web/src/components/feedback.tsx`:
+      `ToastProvider`/`useToast`/`confirmDialog`, dialog rendered as a promise
+      via `createRoot`) replacing the 8 `window.confirm`/`window.alert` call
+      sites.
+- [x] U2 — Requests board building filter (`expand.requester.building`, `all`
+      + per-building `Select`) and a live Dashboard subscribing to
+      `requests`/`availability`/`spots` with refetch guarded by the existing
+      `isRefreshing` ref pattern.
+- [x] F1 — Contact sharing on confirm: `GET /api/guestspot/requests/{id}/contact`
+      returns host name/spot/building/phone only to requester or confirmer of a
+      confirmed request; "Contact host" button in the mine tab (RequestsPage).
+      Host phone already added to the confirm email in the same commit.
+- [x] F2 — Admin request management: cancel/complete/delete buttons on the
+      admin Requests page via direct superuser `update`/`delete`; requester-only
+      custom routes untouched. Audit-logged (`request.update`/`request.delete`).
+- [x] F3 — In-app notifications: `notifications` collection (recipient, type,
+      payload, read, autodate createdAt; migration `1765500008`). `h.notify()`
+      fires alongside the emails (confirmed/cancelled/expired/host-removed/
+      new-request-for-owner). Bell + dropdown in `Layout.tsx`
+      (`NotificationBell.tsx`) subscribing to `notifications`; read via PATCH,
+      "Mark all read" button.
+- [x] F4 — Reminder emails: cron `guestspot-remind` (hourly) → `h.runReminders`
+      sends "guest arrives soon" to requester + host for confirmed requests whose
+      `from` is within the next `REMIND_HOURS` (default 12); `reminded` flag on
+      `requests` makes duplicates impossible.
+- [x] F5 — Audit log: `audit_logs` collection (migration `1765500008`),
+      `audit.pb.js` request hooks log superuser spot/user/request CRUD, `h.audit`
+      helper (best-effort, never throws), read-only `/admin/audit` page
+      (AuditPage.tsx) with filters + CSV export.
+
+New gotchas from this round:
+
+- The isolated-executor rule bites EVERY new hook file, not just once:
+  module-scope functions in a `.pb.js` file are invisible to the handler bodies
+  (`ReferenceError: foo is not defined`), even when the handler body is a
+  one-liner calling a wrapper. The ONLY thing that works inside a handler is
+  `require(__hooks + "/helpers.js")` + globals. All shared logic (e.g. audit
+  `actorInfo`/`changedFields`, cleanup `cancelConfirmed`) must live in
+  `helpers.js` and be invoked as `h.foo(...)`.
+- PB relation fields are nulled as part of the referenced record's delete —
+  BEFORE `onRecordAfterDeleteSuccess` fires. Cleanup that must find rows by a
+  relation (`confirmer = {:id}`, `spot = {:id}`) belongs in
+  `onRecordDeleteRequest` (before the delete), or the query silently returns
+  nothing and e.g. a confirmed request keeps `spot` set, blocking spot deletion.
+- "Something went wrong while processing your request." (400, `{"data":{}}`) is
+  PB's catch-all when a hook throws a NATIVE error (ReferenceError, TypeError),
+  not a PB typed error. `docker compose logs pb` may show nothing in non-dev
+  mode; run a throwaway `pocketbase serve --dev` container against a copy of
+  `pb_data` to get the real stack trace.
+- `docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build`
+  failing mid-way (e.g. web TS error) can leave the pb image rebuilt but the
+  web image stale (or vice versa). After ANY hook/migration/frontend edit, run
+  `docker compose -f docker-compose.yml -f docker-compose.ci.yml build` and
+  `up -d` explicitly; verify the container picked up the change (e.g. the audit
+  hook's `ReferenceError` only reproduced against the freshly-built image).
+- PB record CRUD endpoints are `/api/collections/{collection}/records/{id}` —
+  omitting the `records/` segment (e.g. `PATCH /api/collections/requests/{id}`)
+  returns a confusing `404 "The requested resource wasn't found."` even though
+  GET/POST against the same collection work. All create/list/update/delete
+  calls use `/records` (POST `/records` for create, PATCH `/records/{id}`).
+- `users.pb.js` blocks approved→pending for ALL callers, superusers included
+  ("Approved users cannot be set back to pending.") — an admin cannot
+  un-approve a user via the API. Re-approving a user whose `spotNumber` is
+  already materialized (their spot survived a previous approve/delete cycle)
+  fails with the "spot exists" 400 — clear `spotNumber` first to skip spot
+  creation on the pending→approved transition.
+
+Browser-verified against the running stack: admin cancel/complete on
+`/admin/requests` (audit-logged as `request.update`), `/admin/audit` renders
+with filters + CSV export, notification bell (badge, dropdown, mark-all-read),
+Contact-host modal (host name / phone `tel:` link / spot + building), board
+building filter (per-requester-building, hides other buildings), and the live
+Dashboard picking up a newly-confirmed request without a refresh.
+
+Verification: `cd web && npm run build`, `cd web && npm test`,
+`node scripts/check-i18n.mjs`, `node --check pb/pb_hooks/*.js`, then rebuild
+with the `-f docker-compose.ci.yml` override and
+`set -a; source .env; set +a; bash scripts/smoke.sh` (63 checks pass).

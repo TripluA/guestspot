@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
 import { signOut, useSession } from '../auth'
+import { useToast } from '../components/feedback'
 import { Button, Card, Field, Input, Select } from '../components/ui'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import { setLang } from '../i18n'
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [theme, setThemeState] = useState<Theme>(getTheme())
   const [pwSent, setPwSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   if (!user) return null
   const u = user
@@ -55,7 +57,7 @@ export default function ProfilePage() {
       await pb.collection('users').requestPasswordReset(u.email)
       setPwSent(true)
     } catch {
-      window.alert(t('error'))
+      toast.error(t('error'))
     }
   }
 

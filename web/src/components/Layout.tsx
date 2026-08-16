@@ -15,6 +15,7 @@ import { signOut, useSession } from '../auth'
 import { getTheme, setTheme } from '../lib/theme'
 import { setLang } from '../i18n'
 import { cn } from './ui'
+import NotificationBell from './NotificationBell'
 
 function LangToggle() {
   const { i18n } = useTranslation()
@@ -70,6 +71,7 @@ export default function Layout() {
             GuestSpot
           </Link>
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <LangToggle />
             <ThemeToggle />
             <button

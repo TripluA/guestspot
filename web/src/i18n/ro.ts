@@ -9,6 +9,7 @@ export default {
   error: 'Ceva nu a mers bine. Încearcă din nou.',
   building: 'Bloc',
   spot: 'Loc de parcare',
+  owner: 'Proprietar',
   noData: 'Nimic aici deocamdată.',
 
   // auth
@@ -90,6 +91,13 @@ export default {
   reqEmptyForMe: 'Nicio cerere nu se potrivește cu locurile tale libere acum.',
   reqEmptyMine: 'Nu ai trimis nicio cerere.',
   reqForMe: 'Pentru mine',
+  reqBuildingAll: 'Toate blocurile',
+  reqContactHost: 'Contactează gazda',
+  reqContactTitle: 'Detalii contact gazdă',
+  reqContactHostName: 'Gazdă',
+  reqContactHostPhone: 'Telefon',
+  reqContactError: 'Nu am putut încărca detaliile de contact.',
+  close: 'Închide',
   reqLoadMore: 'Încarcă mai multe',
   reqCreated: 'Trimisă',
   reqUpdateError: 'Nu s-a putut actualiza cererea.',
@@ -107,6 +115,16 @@ export default {
   spotsStatusCancelled: 'Anulat',
   spotsStatusExpired: 'Expirat',
   spotsAvailabilityCancelConfirm: 'Anulezi această perioadă de disponibilitate?',
+
+  // notifications
+  notificationsTitle: 'Notificări',
+  notificationsEmpty: 'Nicio notificare deocamdată.',
+  notificationsMarkAllRead: 'Marchează ca citite',
+  notificationNewRequest: 'Un vecin are nevoie de un loc de parcare',
+  notificationConfirmed: 'Cererea ta a fost confirmată',
+  notificationCancelled: 'O cerere legată de locul tău a fost anulată',
+  notificationExpired: 'Nu s-a găsit nicio gazdă pentru cererea ta',
+  notificationHostRemoved: 'Gazda cererii tale a fost eliminată',
 
    // profile
    profileTitle: 'Profil',
@@ -168,6 +186,9 @@ export default {
   adminSearchRequests: 'Caută solicitant, loc sau notă…',
   adminSave: 'Salvează',
   adminDeleteSpotConfirm: 'Ștergi acest loc?',
+  adminDeleteRequestConfirm: 'Ștergi această cerere?',
+  adminAudit: 'Jurnal de audit',
+  adminSearchAudit: 'Caută actor, acțiune sau țintă…',
   adminRejectUserConfirm: 'Ștergi această înregistrare?',
    adminUnassigned: 'Neatribuit',
    adminExport: 'Exportă CSV',
@@ -190,7 +211,6 @@ export default {
     editUserTitle: 'Editează utilizator',
     editUserResetPassword: 'Resetare parolă (lasă gol pentru a păstra)',
     editUserPassword: 'Parolă nouă (resetare de către admin)',
-    editUserApproved: 'Aprobat',
-    editUserBuilding: 'Bloc',
-    editUserLanguage: 'Limbă',
+     editUserApproved: 'Aprobat',
+     editUserLanguage: 'Limbă',
 }

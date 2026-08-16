@@ -8,19 +8,8 @@ onRecordCreateRequest((e) => {
   if (!e.hasSuperuserAuth()) {
     // Rate limit: REG_MAX_PER_HOUR attempts per IP per rolling hour. The app
     // sits behind the web nginx proxy, so PB's remoteAddr is the proxy IP for
-    // everyone; read the real client IP from X-Forwarded-For instead (the last
-    // entry is appended by nginx and is the actual TCP peer).
-    const info = e.requestInfo()
-    const hdrs = info && info.headers ? info.headers : {}
-    const xff = hdrs["x_forwarded_for"] || ""
-    let ip = ""
-    if (Array.isArray(xff)) {
-      const parts = String(xff[xff.length - 1] || "").split(",").map((s) => s.trim()).filter(Boolean)
-      ip = parts.length ? parts[parts.length - 1] : ""
-    } else if (typeof xff === "string") {
-      const parts = xff.split(",").map((s) => s.trim()).filter(Boolean)
-      ip = parts.length ? parts[parts.length - 1] : ""
-    }
+    // everyone; read the real client IP from X-Forwarded-For instead.
+    const ip = h.clientIP(e.requestInfo())
     if (ip) {
       const maxPerHour = parseInt($os.getenv("REG_MAX_PER_HOUR") || "10", 10) || 10
       const cutoff = h.pbDateTime(new Date(Date.now() - 60 * 60 * 1000))
@@ -78,8 +67,29 @@ onRecordAfterUpdateSuccess((e) => {
   }
 }, "users")
 
-// Block login / token refresh while a user is not approved.
+// Block login / token refresh while a user is not approved, and throttle
+// password login attempts per IP (LOGIN_MAX_PER_HOUR). NOTE: only the users
+// collection is guarded — shared public IPs in an HOA could otherwise lock out
+// neighbours, so keep the cap high and leave _superusers unthrottled.
 onRecordAuthWithPasswordRequest((e) => {
+  const h = require(__hooks + "/helpers.js")
+  const ip = h.clientIP(e.requestInfo())
+  if (ip) {
+    const maxPerHour = parseInt($os.getenv("LOGIN_MAX_PER_HOUR") || "20", 10) || 20
+    const cutoff = h.pbDateTime(new Date(Date.now() - 60 * 60 * 1000))
+    const attempts = e.app.findRecordsByFilter(
+      "login_attempts",
+      "ip = {:ip} && createdAt >= {:cutoff}",
+      "", maxPerHour, 0,
+      { ip: ip, cutoff: cutoff }
+    )
+    if (attempts.length >= maxPerHour) {
+      throw new ForbiddenError("Too many login attempts. Please try again later.")
+    }
+    const attempt = new Record(e.app.findCollectionByNameOrId("login_attempts"))
+    attempt.set("ip", ip)
+    e.app.save(attempt)
+  }
   if (e.record && !e.record.getBool("approved")) {
     throw new ForbiddenError("Your account is pending admin approval.")
   }

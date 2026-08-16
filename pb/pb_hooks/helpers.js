@@ -28,6 +28,9 @@ module.exports = (function () {
       "mail.expired.subject": "GuestSpot: no host found for your request",
       "mail.expired.body": "Nobody offered a parking spot for your request, so it expired. You can submit a new request with a different time window.",
       "mail.add_to_calendar": "Add to calendar",
+      "mail.reminder.subject": "GuestSpot: a guest arrives soon",
+      "mail.reminder.body": "A guest parking reservation is about to start:",
+      "mail.contact": "Host phone",
     },
     ro: {
       "building": "Bloc",
@@ -54,6 +57,9 @@ module.exports = (function () {
       "mail.expired.subject": "GuestSpot: nu s-a găsit o gazdă pentru cererea ta",
       "mail.expired.body": "Nimeni nu a oferit un loc de parcare pentru cererea ta, astfel încât aceasta a expirat. Poți trimite o nouă cerere cu o altă perioadă de timp.",
       "mail.add_to_calendar": "Adaugă în calendar",
+      "mail.reminder.subject": "GuestSpot: un oaspete ajunge în curând",
+      "mail.reminder.body": "O rezervare de parcare pentru oaspeți urmează să înceapă:",
+      "mail.contact": "Telefon gazdă",
     },
   }
 
@@ -72,6 +78,20 @@ module.exports = (function () {
 
   function appURL() {
     return ($os.getenv("PUBLIC_URL") || "").replace(/\/+$/, "")
+  }
+
+  // Real client IP from the nginx X-Forwarded-For header (the last entry is the
+  // actual TCP peer appended by nginx; PB's own remoteAddr is the proxy IP).
+  // PB 0.39 exposes request headers with underscore keys and values that may be
+  // strings or arrays. Returns "" when unavailable (no throttling then).
+  function clientIP(info) {
+    const hdrs = info && info.headers ? info.headers : {}
+    const xff = hdrs["x_forwarded_for"] || ""
+    let raw = ""
+    if (Array.isArray(xff)) raw = String(xff[xff.length - 1] || "")
+    else if (typeof xff === "string") raw = xff
+    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean)
+    return parts.length ? parts[parts.length - 1] : ""
   }
 
   // PB stores datetimes as "2006-01-02 15:04:05.000Z"; make it JS-parsable.
@@ -166,8 +186,94 @@ module.exports = (function () {
     return result
   }
 
+  // Creates an in-app notification for a user (mirrors the email flows).
+  // Internal collection: hooks create rows directly; the recipient reads
+  // them via the collection rules.
+  function notify(app, recipientId, type, payload) {
+    if (!recipientId) return
+    try {
+      const n = new Record(app.findCollectionByNameOrId("notifications"))
+      n.set("recipient", recipientId)
+      n.set("type", type)
+      n.set("payload", payload || null)
+      n.set("read", false)
+      app.save(n)
+    } catch (err) {
+      console.error("[notify] failed: " + String(err && err.message ? err.message : err))
+    }
+  }
+
+  // Appends a read-only audit entry (admin actions). Never throws.
+  function audit(app, actorId, action, targetType, targetId, details) {
+    try {
+      const l = new Record(app.findCollectionByNameOrId("audit_logs"))
+      if (actorId) l.set("actor", actorId)
+      l.set("action", action)
+      if (targetType) l.set("targetType", targetType)
+      if (targetId) l.set("targetId", targetId)
+      if (details) l.set("details", details)
+      app.save(l)
+    } catch (err) {
+      console.error("[audit] failed: " + String(err && err.message ? err.message : err))
+    }
+  }
+
+  // Superuser email/id for audit entries. Superusers are not rows in `users`,
+  // so the `actor` relation is left unset and the email goes into `details`.
+  function auditActorInfo(e) {
+    return {
+      actorId: e.auth && e.auth.isSuperuser ? (e.auth.id || "") : "",
+      actorEmail: e.auth && e.auth.email ? e.auth.email : "",
+    }
+  }
+
+  // Diff of the commonly-changed record fields between two records.
+  function changedFields(record, prev) {
+    const out = {}
+    const fieldNames = ["name", "email", "building", "apartment", "phone", "approved",
+      "spot", "confirmer", "status", "from", "to", "guests", "note",
+      "number", "zone", "owner", "enabled", "notes", "language"]
+    for (let i = 0; i < fieldNames.length; i++) {
+      const f = fieldNames[i]
+      const a = record.getString(f)
+      const b = prev.getString(f)
+      if (a !== b) out[f] = { from: b, to: a }
+    }
+    return out
+  }
+
   function loadUser(app, id) {
     return id ? app.findRecordById("users", id) : null
+  }
+
+  // Cancel a confirmed request (spot lost / host gone): clear the commitment
+  // and notify the requester (in-app + email). Never throws.
+  function cancelConfirmed(app, req) {
+    try {
+      const requester = req.getString("requester")
+        ? loadUser(app, req.getString("requester"))
+        : null
+      req.set("status", "cancelled")
+      req.set("confirmer", "")
+      req.set("spot", "")
+      app.save(req)
+      if (requester) {
+        const lang = requester.getString("language") || "en"
+        notify(app, requester.id, "host_removed", {
+          request: req.id,
+          from: req.getString("from"),
+          to: req.getString("to"),
+        })
+        sendMail(
+          requester.getString("email"),
+          t(lang, "mail.host_removed.subject"),
+          "<p>" + t(lang, "mail.host_removed.body") + "</p>" +
+          "<p><b>" + fmtRange(req.getString("from"), req.getString("to")) + "</b></p>"
+        )
+      }
+    } catch (err) {
+      console.error("[cleanup] cancelConfirmed failed: " + String(err && err.message ? err.message : err))
+    }
   }
 
   function loadSpot(app, id) {
@@ -259,7 +365,10 @@ module.exports = (function () {
   //   pending   -> expired (+ "no host found" email to the requester).
   // Called by the cron job and the admin-only manual trigger (cron.pb.js).
   function runSweep(app) {
-    const now = new Date()
+    // Serialize the cutoff to PB's " " -separated datetime format. Passing a
+    // raw JS Date would serialize to ISO with a "T" and make `to <= {:now}`
+    // match every record sharing the current UTC day (" " < "T").
+    const now = pbDateTime(new Date())
 
     const completed = app.findRecordsByFilter(
       "requests",
@@ -285,6 +394,11 @@ module.exports = (function () {
       app.save(req)
       if (requester) {
         const lang = requester.getString("language") || "en"
+        notify(app, requester.id, "expired", {
+          request: req.id,
+          from: req.getString("from"),
+          to: req.getString("to"),
+        })
         sendMail(
           requester.getString("email"),
           t(lang, "mail.expired.subject"),
@@ -305,6 +419,62 @@ module.exports = (function () {
       availExpired[i].set("status", "expired")
       app.save(availExpired[i])
     }
+
+    // Prune registration-throttle bookkeeping older than 24h so the
+    // collection doesn't grow unboundedly (internal collection, no rules).
+    const cutoff = pbDateTime(new Date(Date.now() - 24 * 60 * 60 * 1000))
+    const staleAttempts = app.findRecordsByFilter(
+      "reg_attempts",
+      "createdAt < {:cutoff}",
+      "", 500, 0,
+      { cutoff: cutoff }
+    )
+    for (let i = 0; i < staleAttempts.length; i++) {
+      app.delete(staleAttempts[i])
+    }
+  }
+
+  // Sends one "guest arrives soon" email to the requester and the host of each
+  // confirmed request starting within the next REMIND_HOURS (default 12). The
+  // `reminded` marker makes this safe to run on an hourly cron.
+  function runReminders(app) {
+    const hours = parseInt($os.getenv("REMIND_HOURS") || "12", 10) || 12
+    const now = pbDateTime(new Date())
+    const until = pbDateTime(new Date(Date.now() + hours * 3600 * 1000))
+    const due = app.findRecordsByFilter(
+      "requests",
+      "status = 'confirmed' && from > {:now} && from <= {:until} && reminded = false",
+      "", 500, 0,
+      { now: now, until: until }
+    )
+    for (let i = 0; i < due.length; i++) {
+      const req = due[i]
+      const requester = loadUser(app, req.getString("requester"))
+      const confirmer = loadUser(app, req.getString("confirmer"))
+      const spot = loadSpot(app, req.getString("spot"))
+      if (requester) {
+        const lang = requester.getString("language") || "en"
+        sendMail(
+          requester.getString("email"),
+          t(lang, "mail.reminder.subject"),
+          "<p>" + t(lang, "mail.reminder.body") + "</p>" +
+          "<p><b>" + fmtRange(req.getString("from"), req.getString("to")) + "</b></p>" +
+          (spot ? "<p><b>" + t(lang, "spot") + ":</b> " + esc(spot.getString("number")) +
+            " (" + t(lang, "building") + " " + spot.getString("building") + ")</p>" : "")
+        )
+      }
+      if (confirmer) {
+        const clang = confirmer.getString("language") || "en"
+        sendMail(
+          confirmer.getString("email"),
+          t(clang, "mail.reminder.subject"),
+          "<p>" + t(clang, "mail.reminder.body") + "</p>" +
+          "<p><b>" + fmtRange(req.getString("from"), req.getString("to")) + "</b></p>"
+        )
+      }
+      req.set("reminded", true)
+      app.save(req)
+    }
   }
 
   return {
@@ -317,6 +487,12 @@ module.exports = (function () {
     gcalURL: gcalURL,
     sendMail: sendMail,
     adminNotifyEmails: adminNotifyEmails,
+    notify: notify,
+    audit: audit,
+    auditActorInfo: auditActorInfo,
+    changedFields: changedFields,
+    cancelConfirmed: cancelConfirmed,
+    clientIP: clientIP,
     loadUser: loadUser,
     loadSpot: loadSpot,
     overlappingConfirmed: overlappingConfirmed,
@@ -327,5 +503,6 @@ module.exports = (function () {
     rangeError: rangeError,
     assertApproved: assertApproved,
     runSweep: runSweep,
+    runReminders: runReminders,
   }
 })()

@@ -12,6 +12,13 @@ cronAdd("guestspot-sweep", "*/30 * * * *", () => {
   h.runSweep($app)
 })
 
+// Hourly "guest arrives soon" reminders for confirmed requests starting within
+// REMIND_HOURS. Duplicate-safe via the requests.reminded marker.
+cronAdd("guestspot-remind", "0 * * * *", () => {
+  const h = require(__hooks + "/helpers.js")
+  h.runReminders($app)
+})
+
 routerAdd("POST", "/api/guestspot/admin/sweep", (e) => {
   const h = require(__hooks + "/helpers.js")
   if (!e.hasSuperuserAuth()) throw new ForbiddenError("Admins only.")
