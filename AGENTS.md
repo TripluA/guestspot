@@ -307,7 +307,8 @@ Verification: `cd web && npm run build`, `cd web && npm test`,
 with the `-f docker-compose.ci.yml` override and
 `set -a; source .env; set +a; bash scripts/smoke.sh` (63 checks pass).
 
-## Work plan (started 2026-08-16) — dual-role accounts
+- [x] Fix: admin Settings email-change route (replaced `findFirstRecordByFilter` with `findRecordsByFilter` to avoid 404 on email-change uniqueness check).
+
 
 One email+password can be BOTH a resident (`users`) and an admin
 (`_superusers`) — separate collection records, no cross-collection uniqueness.
@@ -356,3 +357,34 @@ Gotchas / decisions:
 - The `guestspot_dual_auth` store is only cleared on `signOut`; if the admin
   changes their superuser email in Settings the cached dual session goes stale
   until the next login.
+
+## Fix (2026-08-16) — admin email change without forced password reset
+
+`/admin/settings` previously PATCHed `_superusers` records directly. PB's auth
+update form couples `oldPassword` with a mandatory new password (`password` +
+`passwordConfirm` are `Required` whenever `oldPassword` is present — see
+`forms/record_upsert.go` validateFormFields), so "change email, verified by the
+current password, without resetting the password" 400'd with
+`password: Cannot be blank. / passwordConfirm: Cannot be blank.`. For
+superusers PB also ignores `oldPassword` entirely (manage access skips the
+check), so the old gate was fiction anyway.
+
+- New `POST /api/guestspot/admin/settings` route (`pb/pb_hooks/settings.pb.js`,
+  guarded `$apis.requireAuth("_superusers")`); logic lives in
+  `h.updateAdminSettings(app, record, body)` in `helpers.js` (isolated-executor
+  rule). Body `{ name, email, oldPassword?, password?, passwordConfirm? }`.
+  - Email/password change => requires + verifies `record.validatePassword(oldPassword)`.
+  - New password => confirm match + min 6 chars, `record.setPassword(password)`.
+  - Email => uniqueness pre-check (`findFirstRecordByFilter`), `record.setEmail(email)`.
+  - Persists via `app.save(record)` (bypasses `onRecord*Request` hooks; nothing
+    hooks `_superusers` updates). Errors carry `data.code`
+    (`current_password_required`, `current_password_invalid`, `password_mismatch`,
+    `password_short`, `email_in_use`) mapped to i18n keys in `SettingsPage.tsx`.
+- `SettingsPage.tsx` now calls `pb.send(..., { method: 'POST' })` (SDK `send()`
+  defaults to GET), `authRefresh()`es after success so the new name/email show
+  immediately, and `clearDualSession()`s on email change (the cached
+  resident+admin pairing is keyed by the old email).
+- Caveat (pre-existing): the base image upserts the superuser from
+  `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD` on every boot — changing the `.env`
+  admin's email in Settings is reverted on the next container start unless
+  `.env` is updated too. Use a throwaway superuser for E2E of this route.

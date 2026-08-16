@@ -477,6 +477,68 @@ module.exports = (function () {
     }
   }
 
+  // Admin self-service profile update (settings.pb.js route).
+  // Body: { name, email, oldPassword, password, passwordConfirm }.
+  //
+  // PB's built-in auth update form couples oldPassword with a mandatory new
+  // password (password + passwordConfirm are Required whenever oldPassword is
+  // present), so the standard /api/collections/_superusers endpoint can't
+  // express "change email, verified by the current password, without resetting
+  // the password" — and for superusers it would ignore oldPassword entirely.
+  // This helper verifies the current password itself (record.validatePassword)
+  // and persists via app.save(), bypassing the form validators.
+  //
+  // Errors are thrown with a machine-readable `data.code` so the frontend can
+  // map them to i18n keys.
+  function updateAdminSettings(app, record, body) {
+    if (!record) throw new ForbiddenError("Admins only.")
+
+    const data = body && typeof body === "object" ? body : {}
+    const name = typeof data["name"] === "string" ? data["name"].trim() : record.getString("name")
+    const email = typeof data["email"] === "string" ? data["email"].trim() : record.getString("email")
+    const oldPassword = typeof data["oldPassword"] === "string" ? data["oldPassword"] : ""
+    const password = typeof data["password"] === "string" ? data["password"] : ""
+    const passwordConfirm = typeof data["passwordConfirm"] === "string" ? data["passwordConfirm"] : ""
+
+    const emailChanged = email !== record.getString("email")
+    const passwordChanged = password !== ""
+
+    if (emailChanged || passwordChanged) {
+      if (oldPassword === "") {
+        throw new BadRequestError("Current password is required.", { code: "current_password_required" })
+      }
+      if (!record.validatePassword(oldPassword)) {
+        throw new BadRequestError("Current password is not valid.", { code: "current_password_invalid" })
+      }
+    }
+
+    if (passwordChanged) {
+      if (password !== passwordConfirm) {
+        throw new BadRequestError("Passwords do not match.", { code: "password_mismatch" })
+      }
+      if (password.length < 6) {
+        throw new BadRequestError("Password must be at least 6 characters.", { code: "password_short" })
+      }
+      record.setPassword(password)
+    }
+
+    if (emailChanged) {
+      const dups = app.findRecordsByFilter("_superusers", "email = {:email}", "", 1, 0, { email: email })
+      if (dups.length > 0 && dups[0].id !== record.id) {
+        throw new BadRequestError("This email is already in use.", { code: "email_in_use" })
+      }
+      record.setEmail(email)
+    }
+
+    if (name !== record.getString("name")) {
+      record.set("name", name)
+    }
+
+    app.save(record)
+
+    return record
+  }
+
   return {
     t: t,
     esc: esc,
@@ -504,5 +566,6 @@ module.exports = (function () {
     assertApproved: assertApproved,
     runSweep: runSweep,
     runReminders: runReminders,
+    updateAdminSettings: updateAdminSettings,
   }
 })()

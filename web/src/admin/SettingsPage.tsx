@@ -2,8 +2,18 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { pb } from '../lib/pb'
 import { pbErrorMessage } from '../lib/pbError'
+import { clearDualSession } from '../lib/dualAuth'
 import { useSession } from '../auth'
 import { Button, Card, Field, Input } from '../components/ui'
+
+// Machine-readable error codes returned by POST /api/guestspot/admin/settings
+const SETTINGS_ERROR_KEYS: Record<string, string> = {
+  current_password_required: 'settingsCurrentPasswordRequired',
+  current_password_invalid: 'settingsWrongCurrentPassword',
+  password_mismatch: 'settingsPasswordMismatch',
+  password_short: 'settingsPasswordShort',
+  email_in_use: 'settingsEmailInUse',
+}
 
 export default function SettingsPage() {
   const { t } = useTranslation()
@@ -31,40 +41,46 @@ export default function SettingsPage() {
     setSaved(false)
     setError(null)
 
-    const data: Record<string, any> = {
-      name: form.name.trim(),
-    }
+    const name = form.name.trim()
+    const email = form.email.trim()
+    const emailChanged = email !== model?.email
+    const passwordChanged = Boolean(form.password)
 
-    if (form.email.trim() !== model?.email) {
-      data.email = form.email.trim()
-    }
-
-    if (form.password) {
-      data.password = form.password
-      data.passwordConfirm = form.passwordConfirm
-    }
-
-    // Email and password changes on auth collections require oldPassword
-    if (data.email || data.password) {
-      if (!form.oldPassword) {
-        setError(t('validationRequired') + ' (' + t('profileOldPassword') + ')')
-        setSaving(false)
-        return
-      }
-      data.oldPassword = form.oldPassword
+    // Email and password changes require the current password (verified server-side)
+    if ((emailChanged || passwordChanged) && !form.oldPassword) {
+      setError(t('validationRequired') + ' (' + t('profileOldPassword') + ')')
+      setSaving(false)
+      return
     }
 
     try {
-      await pb.collection('_superusers').update(model.id, data)
+      await pb.send('/api/guestspot/admin/settings', {
+        method: 'POST',
+        body: {
+          name,
+          email,
+          oldPassword: form.oldPassword || undefined,
+          password: form.password || undefined,
+          passwordConfirm: form.passwordConfirm || undefined,
+        },
+      })
+
+      // An admin email change invalidates a cached dual (resident+admin) pairing
+      if (emailChanged) clearDualSession()
+
+      // Refresh the session so the new name/email render immediately
+      try {
+        await pb.collection('_superusers').authRefresh()
+      } catch {
+        // best effort — model stays stale until the next login
+      }
+
       setSaved(true)
-      setForm((prev) => ({
-        ...prev,
-        oldPassword: '',
-        password: '',
-        passwordConfirm: '',
-      }))
+      setForm({ name, email, oldPassword: '', password: '', passwordConfirm: '' })
     } catch (err) {
-      setError(pbErrorMessage(err, t) || t('error'))
+      const code = (err as { data?: { data?: { code?: string } } })?.data?.data?.code
+      const key = code ? SETTINGS_ERROR_KEYS[code] : undefined
+      setError(key ? t(key) : pbErrorMessage(err, t) || t('error'))
     } finally {
       setSaving(false)
     }

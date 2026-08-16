@@ -40,6 +40,8 @@ Copy `.env.example` to `.env` and adjust. Placeholder values like `CHANGE_ME_STR
 
 To change the admin password, edit `PB_ADMIN_PASSWORD` in `.env` and run `docker compose up -d` — the superuser is upserted on every boot, so the new password applies immediately.
 
+Changing the admin email or password from the in-app **Settings** page works too (email changes ask for the current password and never force a password reset). Note that the boot-time upsert uses `.env` — an email change made in Settings is reverted on the next container start unless `PB_ADMIN_EMAIL` in `.env` is updated to match.
+
 ## Workflows
 
 - **Guests (owners without a free spot)** register and, when a guest arrives, submit a request for a date/time window.
