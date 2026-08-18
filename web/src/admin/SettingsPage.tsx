@@ -20,7 +20,7 @@ export default function SettingsPage() {
   const { isAdmin } = useSession()
 
   // Grab active superuser record if authenticated as admin
-  const model = pb.authStore.model as any
+  const model = pb.authStore.model as Record<string, string> | null
   const [form, setForm] = useState(() => ({
     name: model?.name ?? '',
     email: model?.email ?? '',
@@ -144,7 +144,9 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {saved && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>}
+          {saved && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>
+          )}
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <Button type="submit" loading={saving} className="w-full">

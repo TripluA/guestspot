@@ -388,3 +388,123 @@ check), so the old gate was fiction anyway.
   `PB_ADMIN_EMAIL`/`PB_ADMIN_PASSWORD` on every boot — changing the `.env`
   admin's email in Settings is reverted on the next container start unless
   `.env` is updated too. Use a throwaway superuser for E2E of this route.
+
+## Work plan (started 2026-08-18) — foundation, security & UX
+
+### Round 5 — Code quality, security & password reset
+
+- [x] Q1 — ESLint + Prettier: add `eslint` (with `@eslint/js`, `typescript-eslint`,
+      `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`) and `prettier`
+      to `web/devDependencies`; `eslint.config.js` (flat config), `.prettierrc`
+      (matching existing style — single quotes, trailing commas, 100 print
+      width). Fix lint errors across `web/src/`. Add `npm run lint` / `npm run
+      format` scripts; CI `lint` job runs `npm run lint`.
+- [x] Q2 — React Error Boundary: wrap `<AppRoutes>` in a top-level error
+      boundary (`web/src/components/ErrorBoundary.tsx`) that shows a friendly
+      crash screen with a "Reload" button + the error message in dev mode.
+      Also add per-route boundaries around `<Outlet>` in Layout and AdminLayout
+      so a page crash doesn't take down the shell.
+- [x] Q3 — CSP headers: add `Content-Security-Policy` header in `nginx.conf`
+      (`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'`
+      — unsafe-inline needed for Tailwind v4; `connect-src 'self' wss: ws:`
+      for PB realtime; `img-src 'self' data: blob:` for future spot photos).
+      Also add `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
+- [x] Q4 — Password reset: `POST /api/guestspot/auth/password-reset` (request)
+      sends a reset email via PB's built-in `requestPasswordReset`; new
+      `PasswordResetPage.tsx` at `/reset-password` with token input + new
+      password form. `LoginPage.tsx` gets a "Forgot password?" link.
+      Smoke: request reset → follow token → set new password → login.
+- [x] Q5 — Email verification on registration: optional env-gated
+      (`REQUIRE_EMAIL_VERIFICATION=true`) PB built-in verification flow;
+      `RegisterPage.tsx` shows "check your email" screen when enabled; admin
+      can still approve after verification. Smoke: register → verify → approve.
+
+### Round 6 — Performance & UX
+
+- [ ] P1 — Pagination on admin pages: `OverviewPage` uses `getList` with
+      page-based counts instead of `getFullList`; `AuditPage` paginates with
+      load-more; `UsersPage` / `SpotsPage` / admin `RequestsPage` get
+      pagination controls. Dashboard resident views already use `getList` with
+      load-more — align admin pages.
+- [ ] P2 — Debounced search: wrap search inputs in a `useDebouncedValue(value,
+      300)` hook (`web/src/lib/useDebounce.ts`) so API calls fire 300ms after
+      the user stops typing; apply to all search/filter inputs (requests board,
+      admin users/spots/audit/search).
+- [ ] P3 — Optimistic updates: for approve/reject on ApprovalsPage, confirm/
+      cancel on RequestsPage, read/unread on NotificationBell — apply local
+      state optimistically before the API call; rollback on error.
+- [ ] P4 — Spot photos: `spots` collection gets a `photo` file field (migration
+      `1765500009`); `MySpotsPage` edit modal gains a file upload input (max
+      2MB, JPEG/PNG/WebP); `SpotsPage` admin edit also gets it; photos served
+      via PB's file API. Spots list/card shows thumbnail when present.
+- [ ] P5 — Guest request history: `/app/history` page shows the user's past
+      requests (all statuses, newest first) with pagination; add `navHistory`
+      nav item + icon (`History` from lucide-react).
+
+### Round 7 — Power features
+
+- [ ] F1 — Calendar view: `/app/calendar` page renders a month-grid showing
+      the user's availability windows (green) and requests (blue) as colored
+      bars; click a day to see details; navigation arrows for prev/next month.
+      Add `navCalendar` nav item (`Calendar` from lucide-react). Uses existing
+      `availability` and `requests` data — no new backend needed.
+- [ ] F2 — Recurring availability: availability create modal gains a
+      "Repeat weekly" checkbox + day-of-week picker (Mon–Sun) + end date;
+      backend route `POST /api/guestspot/availability/repeat` in
+      `availability.pb.js` that creates N weekly windows atomically; overlap
+      check on each.
+- [ ] F3 — Bulk admin operations: `UsersPage` gets select-all checkbox +
+      per-row checkboxes; bulk actions toolbar (Approve selected, Delete
+      selected); `SpotsPage` gets delete-selected; `AdminRequestsPage` gets
+      cancel-selected. Each op fires sequentially with error collection.
+- [ ] F4 — Building announcements: `announcements` collection (title, body,
+      building, createdBy, createdAt); admin `AnnouncementsPage.tsx` at
+      `/admin/announcements` with CRUD; resident dashboard shows the latest
+      announcement per building as a dismissible banner; in-app notification
+      on new announcement.
+- [ ] F5 — Push notifications: PWA web-push via PB's `subscriptions`
+      collection; `NotificationBell` subscribes to push on mount; browser
+      permission prompt; `public/vapid-key.json` endpoint. Requires adding
+      `web-push` to the PB image or handling push server-side in a hook.
+
+### Round 8 — PWA & testing
+
+- [ ] W1 — PWA manifest + service worker: `public/manifest.json` with app
+      name/icons/scope; register a minimal service worker (`public/sw.js`) that
+      does cache-first for static assets and network-first for `/api/`;
+      `<meta name="theme-color">` + apple-touch-icon; update
+      `index.html` head.
+- [ ] W2 — Component tests: add `@testing-library/react` + `@testing-library/
+      user-event` devDeps; write tests for Login/Register form validation,
+      RequestModal date logic, NotificationBell rendering, StatusBadge colors,
+      LangToggle, ThemeToggle. CI `lint` job runs `npm test` (already wired).
+- [ ] W3 — Accessibility: audit all interactive elements for keyboard nav,
+      focus management (modals trap focus, Escape closes), `aria-label` on
+      icon-only buttons, `role` attributes on custom widgets; fix any issues.
+- [ ] W4 — Backup docs + optional cron: document `pb_data` backup strategy
+      in README (rsync, sqlite3 .backup); add optional `backup.sh` script
+      that snapshots `pb_data/` with a timestamp.
+
+### Key conventions / gotchas for this round
+
+- ESLint flat config (`eslint.config.js`) with `@eslint/js` +
+  `typescript-eslint` + `eslint-plugin-react-hooks` v5 (uses
+  `reactCompiler` setting for React 19); Prettier via `eslint-config-prettier`
+  to disable formatting rules that conflict.
+- PWA service worker must NOT cache `/api/` responses (PB auth tokens in
+  responses; stale data). Use `networkFirst` for API routes and
+  `cacheFirst` for static assets only.
+- Password reset uses PB's built-in `requestPasswordReset(email)` SDK method
+  which sends a verification email with a token; the frontend catches the
+  token from the URL query string (`?token=...&passwordResetToken=...`).
+- Push notifications require a VAPID key pair; generate with `npx web-push
+  generate-vapid-keys` and store the private key as an env var
+  (`VAPID_PRIVATE_KEY`), public key embedded in the frontend.
+
+## Verification
+
+After each round: `cd web && npm run build`, `cd web && npm test`,
+`cd web && npm run lint`, `node scripts/check-i18n.mjs`,
+`node --check pb/pb_hooks/*.js`, then rebuild with
+`docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build`
+and `set -a; source .env; set +a; bash scripts/smoke.sh`.

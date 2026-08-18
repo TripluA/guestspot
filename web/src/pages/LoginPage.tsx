@@ -38,7 +38,10 @@ export default function LoginPage() {
       let resident: RoleSession | null = null
       try {
         const rec = await probe.collection('users').authWithPassword(email.trim(), password)
-        resident = { token: probe.authStore.token, model: (rec.record ?? probe.authStore.model) as never }
+        resident = {
+          token: probe.authStore.token,
+          model: (rec.record ?? probe.authStore.model) as never,
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg.includes('pending admin approval')) {
@@ -51,7 +54,10 @@ export default function LoginPage() {
         let admin: RoleSession | null = null
         try {
           const rec = await probe.collection('_superusers').authWithPassword(email.trim(), password)
-          admin = { token: probe.authStore.token, model: (rec.record ?? probe.authStore.model) as never }
+          admin = {
+            token: probe.authStore.token,
+            model: (rec.record ?? probe.authStore.model) as never,
+          }
         } catch {
           // not an admin — single-role resident
         }
@@ -110,7 +116,12 @@ export default function LoginPage() {
         {pendingDual ? (
           <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <p className="text-sm text-gray-600 dark:text-gray-300">{t('loginDualTitle')}</p>
-            <Button type="button" className="w-full" size="lg" onClick={() => void continueAsResident()}>
+            <Button
+              type="button"
+              className="w-full"
+              size="lg"
+              onClick={() => void continueAsResident()}
+            >
               {t('loginAsResident')}
             </Button>
             <Button
@@ -158,6 +169,15 @@ export default function LoginPage() {
               />
             </Field>
 
+            <div className="text-right">
+              <Link
+                to="/reset-password"
+                className="text-sm font-medium text-teal-700 hover:underline dark:text-teal-300"
+              >
+                {t('loginForgotPassword')}
+              </Link>
+            </div>
+
             {error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
                 {error}
@@ -173,7 +193,10 @@ export default function LoginPage() {
         {!pendingDual && (
           <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
             {t('loginNoAccount')}{' '}
-            <Link to="/register" className="font-medium text-teal-700 hover:underline dark:text-teal-300">
+            <Link
+              to="/register"
+              className="font-medium text-teal-700 hover:underline dark:text-teal-300"
+            >
               {t('loginRegister')}
             </Link>
           </p>

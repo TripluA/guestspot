@@ -18,7 +18,17 @@ interface AuditLogRecord {
   updatedAt: string
 }
 
-const ACTIONS = ['all', 'user.approve', 'user.update', 'user.delete', 'spot.create', 'spot.update', 'spot.delete', 'request.update', 'request.delete']
+const ACTIONS = [
+  'all',
+  'user.approve',
+  'user.update',
+  'user.delete',
+  'spot.create',
+  'spot.update',
+  'spot.delete',
+  'request.update',
+  'request.delete',
+]
 
 export default function AuditPage() {
   const { t } = useTranslation()
@@ -107,7 +117,11 @@ export default function AuditPage() {
         </Select>
       </div>
 
-      {filtered.length === 0 && <Card><p className="py-6 text-center text-gray-400">{t('noData')}</p></Card>}
+      {filtered.length === 0 && (
+        <Card>
+          <p className="py-6 text-center text-gray-400">{t('noData')}</p>
+        </Card>
+      )}
 
       <div className="space-y-2">
         {filtered.map((l) => (
@@ -115,7 +129,9 @@ export default function AuditPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">
-                  <span className="font-mono text-xs text-teal-700 dark:text-teal-300">{l.action}</span>
+                  <span className="font-mono text-xs text-teal-700 dark:text-teal-300">
+                    {l.action}
+                  </span>
                   {l.targetType && (
                     <span className="ml-2 text-gray-500 dark:text-gray-400">
                       {l.targetType}

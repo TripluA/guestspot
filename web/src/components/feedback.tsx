@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import { Button, cn } from './ui'
@@ -115,12 +108,7 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
       host.remove()
       resolve(val)
     }
-    root.render(
-      <ConfirmDialog
-        {...options}
-        onClose={done}
-      />,
-    )
+    root.render(<ConfirmDialog {...options} onClose={done} />)
   })
 }
 
@@ -141,9 +129,7 @@ function ConfirmDialog({
     >
       <div className="w-full rounded-t-2xl bg-white p-5 shadow-xl dark:bg-gray-900 sm:max-w-md sm:rounded-2xl">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {message && (
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{message}</p>
-        )}
+        {message && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{message}</p>}
         <div className={cn('mt-4 flex justify-end gap-2')}>
           <Button variant="secondary" onClick={() => onClose(false)}>
             {cancelLabel}

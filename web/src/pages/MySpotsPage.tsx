@@ -3,16 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { CalendarPlus, Plus } from 'lucide-react'
 import { pb } from '../lib/pb'
 import { useSession } from '../auth'
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  Input,
-  Modal,
-  Spinner,
-} from '../components/ui'
+import { Badge, Button, Card, EmptyState, Field, Input, Modal, Spinner } from '../components/ui'
 import { fmtRange, isPast, localNowOffset, toPbDate, cmpSpotNumber } from '../lib/format'
 import { pbErrorMessage } from '../lib/pbError'
 import { confirmDialog, useToast } from '../components/feedback'
@@ -95,7 +86,9 @@ export default function MySpotsPage() {
                 {t('spotsAvailability')}
               </p>
               {upcoming.length === 0 && past.length === 0 && (
-                <p className="text-sm text-gray-400 dark:text-gray-500">{t('spotsNoAvailability')}</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  {t('spotsNoAvailability')}
+                </p>
               )}
               <div className="space-y-2">
                 {upcoming.map((a) => (
@@ -239,7 +232,11 @@ function AddAvailabilityModal({
           </Field>
         </div>
         <Field label={t('spotsReason')}>
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Holiday…" />
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Holiday…"
+          />
         </Field>
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">

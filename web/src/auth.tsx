@@ -11,7 +11,12 @@ export interface Session {
   loading: boolean
 }
 
-const SessionContext = createContext<Session>({ user: null, isAdmin: false, dual: false, loading: true })
+const SessionContext = createContext<Session>({
+  user: null,
+  isAdmin: false,
+  dual: false,
+  loading: true,
+})
 
 function modelToSession(): Session {
   const model = pb.authStore.model as Record<string, unknown> | null

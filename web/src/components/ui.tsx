@@ -1,4 +1,9 @@
-import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import {
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react'
 import { Loader2, X } from 'lucide-react'
 
 export function cn(...parts: (string | false | null | undefined)[]) {
@@ -13,7 +18,8 @@ const variantCls: Record<Variant, string> = {
   secondary:
     'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus-visible:ring-gray-400 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600',
-  ghost: 'text-teal-700 hover:bg-teal-50 focus-visible:ring-teal-600 dark:text-teal-300 dark:hover:bg-teal-950',
+  ghost:
+    'text-teal-700 hover:bg-teal-50 focus-visible:ring-teal-600 dark:text-teal-300 dark:hover:bg-teal-950',
 }
 
 const sizeCls: Record<Size, string> = {
@@ -30,7 +36,11 @@ export function Button({
   children,
   disabled,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size; loading?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant
+  size?: Size
+  loading?: boolean
+}) {
   return (
     <button
       className={cn(
@@ -72,7 +82,9 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </span>
       {children}
       {error && <span className="mt-1 block text-sm text-red-600 dark:text-red-400">{error}</span>}
     </label>
@@ -109,7 +121,12 @@ export function Badge({
     teal: 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300',
   }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', colors[color])}>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+        colors[color],
+      )}
+    >
       {children}
     </span>
   )
@@ -149,7 +166,9 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
       <div
         className={cn(
@@ -183,4 +202,5 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
         : status === 'expired'
           ? 'red'
           : 'gray'
-  return <Badge color={color as 'green' | 'amber' | 'red' | 'gray'}>{label ?? status}</Badge>}
+  return <Badge color={color as 'green' | 'amber' | 'red' | 'gray'}>{label ?? status}</Badge>
+}

@@ -54,7 +54,7 @@ export default function SpotsPage() {
         setError(pbErrorMessage(err, t) || t('error'))
       }
     },
-    [],
+    [t],
   )
 
   useEffect(() => {
@@ -177,9 +177,17 @@ export default function SpotsPage() {
         </Select>
       </div>
 
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
+      {error && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
-      {filtered.length === 0 && <Card><p className="py-6 text-center text-gray-400">{t('noData')}</p></Card>}
+      {filtered.length === 0 && (
+        <Card>
+          <p className="py-6 text-center text-gray-400">{t('noData')}</p>
+        </Card>
+      )}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((spot) => (
@@ -194,7 +202,7 @@ export default function SpotsPage() {
               </div>
               <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
                 {spot.owner
-                  ? users.find((u) => u.id === spot.owner)?.name ?? spot.owner
+                  ? (users.find((u) => u.id === spot.owner)?.name ?? spot.owner)
                   : t('adminUnassigned')}
                 {spot.zone ? ` · ${spot.zone}` : ''}
               </p>
@@ -217,7 +225,12 @@ export default function SpotsPage() {
               >
                 <Pencil className="size-4" />
               </Button>
-              <Button size="sm" variant="ghost" loading={busyId === spot.id} onClick={() => void remove(spot)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={busyId === spot.id}
+                onClick={() => void remove(spot)}
+              >
                 <Trash2 className="size-4" />
               </Button>
             </div>
@@ -277,7 +290,11 @@ function SpotModal({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('adminSpotNumber')}>
-            <Input value={f.number} onChange={(e) => setF({ ...f, number: e.target.value })} placeholder="301" />
+            <Input
+              value={f.number}
+              onChange={(e) => setF({ ...f, number: e.target.value })}
+              placeholder="301"
+            />
           </Field>
           <Field label={t('building')}>
             <Select value={f.building} onChange={(e) => setF({ ...f, building: e.target.value })}>
@@ -290,7 +307,11 @@ function SpotModal({
           </Field>
         </div>
         <Field label={t('adminSpotZone')}>
-          <Input value={f.zone} onChange={(e) => setF({ ...f, zone: e.target.value })} placeholder="Stairwell A" />
+          <Input
+            value={f.zone}
+            onChange={(e) => setF({ ...f, zone: e.target.value })}
+            placeholder="Stairwell A"
+          />
         </Field>
         <Field label={t('adminSpotOwner')}>
           <Select value={f.owner} onChange={(e) => setF({ ...f, owner: e.target.value })}>
@@ -310,7 +331,9 @@ function SpotModal({
               onChange={(e) => setF({ ...f, enabled: e.target.checked })}
               className="size-4 accent-teal-600"
             />
-            <span className="text-sm text-gray-600 dark:text-gray-300">{t('adminSpotEnabled')}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {t('adminSpotEnabled')}
+            </span>
           </label>
         </Field>
         <Field label={t('reqNote')}>

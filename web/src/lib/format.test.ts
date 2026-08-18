@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cmpSpotNumber, fmtDT, fmtRange, fromPbDate, isPast, localNowOffset, toPbDate } from './format'
+import {
+  cmpSpotNumber,
+  fmtDT,
+  fmtRange,
+  fromPbDate,
+  isPast,
+  localNowOffset,
+  toPbDate,
+} from './format'
 
 vi.mock('../i18n', () => ({ default: { language: 'en' } }))
 

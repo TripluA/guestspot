@@ -131,7 +131,11 @@ export default function UsersPage() {
         </Select>
       </div>
 
-      {filtered.length === 0 && <Card><p className="py-6 text-center text-gray-400">{t('noData')}</p></Card>}
+      {filtered.length === 0 && (
+        <Card>
+          <p className="py-6 text-center text-gray-400">{t('noData')}</p>
+        </Card>
+      )}
 
       <div className="space-y-2">
         {filtered.map((u) => (
@@ -175,7 +179,12 @@ export default function UsersPage() {
                     {t('adminApprove')}
                   </Button>
                 )}
-                <Button size="sm" variant="danger" loading={busyId === u.id} onClick={() => void remove(u)}>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  loading={busyId === u.id}
+                  onClick={() => void remove(u)}
+                >
                   {t('adminDelete')}
                 </Button>
               </div>
@@ -241,7 +250,7 @@ function UserEditModal({
     e.preventDefault()
     setSaving(true)
     setError('')
-    const data: Record<string, any> = {
+    const data: Record<string, unknown> = {
       name: form.name.trim(),
       email: form.email.trim(),
       building: form.building,
@@ -278,30 +287,56 @@ function UserEditModal({
     <Modal open title={t('editUserTitle')} onClose={onClose} wide>
       <form onSubmit={(e) => void save(e)} className="space-y-4">
         <Field label={t('registerName')} error={error}>
-          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <Input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
         </Field>
         <Field label={t('registerEmail')}>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('registerBuilding')}>
-            <Select value={form.building} onChange={(e) => setForm({ ...form, building: e.target.value })}>
+            <Select
+              value={form.building}
+              onChange={(e) => setForm({ ...form, building: e.target.value })}
+            >
               {BUILDINGS.map((b) => (
-                <option key={b} value={b}>{b}</option>
+                <option key={b} value={b}>
+                  {b}
+                </option>
               ))}
             </Select>
           </Field>
           <Field label={t('registerApartment')}>
-            <Input value={form.apartment} onChange={(e) => setForm({ ...form, apartment: e.target.value })} />
+            <Input
+              value={form.apartment}
+              onChange={(e) => setForm({ ...form, apartment: e.target.value })}
+            />
           </Field>
         </div>
         <Field label={t('registerPhone')}>
-          <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Input
+            type="tel"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
         </Field>
         <Field label={t('editUserLanguage')}>
-          <Select value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value as Language })}>
+          <Select
+            value={form.language}
+            onChange={(e) => setForm({ ...form, language: e.target.value as Language })}
+          >
             {LANGUAGES.map((l) => (
-              <option key={l} value={l}>{l === 'ro' ? 'Română' : 'English'}</option>
+              <option key={l} value={l}>
+                {l === 'ro' ? 'Română' : 'English'}
+              </option>
             ))}
           </Select>
         </Field>
@@ -332,10 +367,16 @@ function UserEditModal({
               className="size-4 accent-teal-600"
               disabled={user.approved}
             />
-            <span className="text-sm text-gray-600 dark:text-gray-300">{form.approved ? t('adminUsersApproved') : t('adminPending')}</span>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {form.approved ? t('adminUsersApproved') : t('adminPending')}
+            </span>
           </label>
         </Field>
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             {t('cancel')}

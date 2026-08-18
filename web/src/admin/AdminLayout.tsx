@@ -5,6 +5,7 @@ import { signOut } from '../auth'
 import { getTheme, setTheme } from '../lib/theme'
 import { setLang } from '../i18n'
 import { cn } from '../components/ui'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 function LangToggle() {
   const { i18n } = useTranslation()
@@ -97,7 +98,18 @@ export default function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <Outlet />
+        <ErrorBoundary
+          fallbackRender={(error, reset) => (
+            <div className="py-12 text-center">
+              <p className="text-sm text-red-600 dark:text-red-400">{error.message}</p>
+              <button onClick={reset} className="mt-3 text-sm font-medium text-teal-700 hover:underline dark:text-teal-300">
+                {t('back')}
+              </button>
+            </div>
+          )}
+        >
+          <Outlet />
+        </ErrorBoundary>
       </div>
     </div>
   )

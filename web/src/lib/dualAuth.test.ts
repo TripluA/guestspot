@@ -9,12 +9,7 @@ vi.stubGlobal('localStorage', {
   clear: () => storage.clear(),
 })
 
-import {
-  clearDualSession,
-  getDualSession,
-  setDualSession,
-  type DualSession,
-} from './dualAuth'
+import { clearDualSession, getDualSession, setDualSession, type DualSession } from './dualAuth'
 
 function sample(): DualSession {
   return {

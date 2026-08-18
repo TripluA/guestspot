@@ -37,4 +37,17 @@ onBootstrap((e) => {
   }
 
   e.app.save(settings)
+
+  // Optional email verification on registration (REQUIRE_EMAIL_VERIFICATION=true).
+  // Must be set after app.save(settings) to avoid overwriting the collection.
+  const requireVerification = ($os.getenv("REQUIRE_EMAIL_VERIFICATION") || "").toLowerCase() === "true"
+  try {
+    const users = app.findCollectionByNameOrId("users")
+    if (users.requireVerification !== requireVerification) {
+      users.requireVerification = requireVerification
+      app.save(users)
+    }
+  } catch (_) {
+    // collection may not exist yet on first boot
+  }
 })

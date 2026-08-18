@@ -32,25 +32,25 @@ export default function ProfilePage() {
   if (!user) return null
   const u = user
 
-   async function save(e: FormEvent) {
-     e.preventDefault()
-     setSaving(true)
-     setSaved(false)
-     try {
-       await pb.collection('users').update(u.id, {
-         name: form.name.trim(),
-         apartment: form.apartment.trim() || undefined,
-         phone: form.phone.trim() || undefined,
-         language: form.language,
-       })
-       setLang(form.language)
-       setSaved(true)
-     } catch (err) {
-       setError(pbErrorMessage(err, t) || t('error'))
-     } finally {
-       setSaving(false)
-     }
-   }
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setSaved(false)
+    try {
+      await pb.collection('users').update(u.id, {
+        name: form.name.trim(),
+        apartment: form.apartment.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        language: form.language,
+      })
+      setLang(form.language)
+      setSaved(true)
+    } catch (err) {
+      setError(pbErrorMessage(err, t) || t('error'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function resetPassword() {
     try {
@@ -75,11 +75,7 @@ export default function ProfilePage() {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('profileBuilding')}>
-              <Select
-                value={user.building}
-                onChange={() => undefined}
-                disabled
-              >
+              <Select value={user.building} onChange={() => undefined} disabled>
                 {BUILDINGS.map((b) => (
                   <option key={b} value={b}>
                     {b}
@@ -95,7 +91,10 @@ export default function ProfilePage() {
             </Field>
           </div>
           <Field label={t('profilePhone')}>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
           </Field>
           <Field label={t('profileLanguage')}>
             <Select
@@ -106,7 +105,9 @@ export default function ProfilePage() {
               <option value="ro">Română</option>
             </Select>
           </Field>
-          {saved && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>}
+          {saved && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400">{t('profileSaved')}</p>
+          )}
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button type="submit" loading={saving} className="w-full">
             {t('profileSave')}
@@ -130,7 +131,12 @@ export default function ProfilePage() {
           </Select>
         </Field>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Button type="button" variant="secondary" className="flex-1" onClick={() => void resetPassword()}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            onClick={() => void resetPassword()}
+          >
             {t('profileChangePassword')}
           </Button>
           <Button type="button" variant="danger" className="flex-1" onClick={signOut}>
@@ -138,7 +144,11 @@ export default function ProfilePage() {
             {t('signOut')}
           </Button>
         </div>
-        {pwSent && <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{t('profilePasswordSent')}</p>}
+        {pwSent && (
+          <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">
+            {t('profilePasswordSent')}
+          </p>
+        )}
       </Card>
     </div>
   )

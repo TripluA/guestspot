@@ -20,9 +20,7 @@ export function setTheme(t: Theme) {
 
 export function initTheme() {
   applyTheme(getTheme())
-  window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', () => {
-      if (getTheme() === 'system') applyTheme('system')
-    })
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (getTheme() === 'system') applyTheme('system')
+  })
 }

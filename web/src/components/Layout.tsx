@@ -1,20 +1,11 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  CalendarDays,
-  Car,
-  Globe,
-  House,
-  LogOut,
-  Moon,
-  Shield,
-  Sun,
-  User,
-} from 'lucide-react'
+import { CalendarDays, Car, Globe, House, LogOut, Moon, Shield, Sun, User } from 'lucide-react'
 import { signOut, useSession } from '../auth'
 import { getTheme, setTheme } from '../lib/theme'
 import { setLang } from '../i18n'
 import { cn } from './ui'
+import { ErrorBoundary } from './ErrorBoundary'
 import NotificationBell from './NotificationBell'
 
 function LangToggle() {
@@ -66,7 +57,10 @@ export default function Layout() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-          <Link to="/app" className="flex items-center gap-2 text-lg font-bold text-teal-700 dark:text-teal-300">
+          <Link
+            to="/app"
+            className="flex items-center gap-2 text-lg font-bold text-teal-700 dark:text-teal-300"
+          >
             <Car className="size-6" />
             GuestSpot
           </Link>
@@ -132,7 +126,18 @@ export default function Layout() {
         </aside>
 
         <main className="min-w-0 flex-1 py-6 pb-24 md:pb-10">
-          <Outlet />
+          <ErrorBoundary
+            fallbackRender={(error, reset) => (
+              <div className="py-12 text-center">
+                <p className="text-sm text-red-600 dark:text-red-400">{error.message}</p>
+                <button onClick={reset} className="mt-3 text-sm font-medium text-teal-700 hover:underline dark:text-teal-300">
+                  {t('back')}
+                </button>
+              </div>
+            )}
+          >
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -146,7 +151,9 @@ export default function Layout() {
               className={({ isActive }) =>
                 cn(
                   'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
-                  isActive ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400',
+                  isActive
+                    ? 'text-teal-700 dark:text-teal-300'
+                    : 'text-gray-500 dark:text-gray-400',
                 )
               }
             >
@@ -160,7 +167,9 @@ export default function Layout() {
               className={({ isActive }) =>
                 cn(
                   'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
-                  isActive ? 'text-teal-700 dark:text-teal-300' : 'text-gray-500 dark:text-gray-400',
+                  isActive
+                    ? 'text-teal-700 dark:text-teal-300'
+                    : 'text-gray-500 dark:text-gray-400',
                 )
               }
             >

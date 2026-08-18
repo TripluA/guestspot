@@ -57,7 +57,10 @@ export default function DashboardPage() {
     })
 
     const unsubs = ['requests', 'availability', 'spots'].map((coll) =>
-      pb.collection(coll).subscribe('*', () => void load()).catch(() => () => {}),
+      pb
+        .collection(coll)
+        .subscribe('*', () => void load())
+        .catch(() => () => {}),
     )
 
     return () => {
@@ -71,9 +74,7 @@ export default function DashboardPage() {
   const activeRequests = myRequests.filter(
     (r) => (r.status === 'pending' || r.status === 'confirmed') && !isPast(r.to),
   )
-  const pastRequests = myRequests
-    .filter((r) => !activeRequests.includes(r))
-    .slice(0, 3)
+  const pastRequests = myRequests.filter((r) => !activeRequests.includes(r)).slice(0, 3)
 
   return (
     <div className="space-y-6">
@@ -91,7 +92,9 @@ export default function DashboardPage() {
         <Link to="/app/spots" className="block">
           <Card className="flex items-center justify-between hover:border-teal-500">
             <div>
-              <p className="text-3xl font-bold text-teal-700 dark:text-teal-300">{mySpots.length}</p>
+              <p className="text-3xl font-bold text-teal-700 dark:text-teal-300">
+                {mySpots.length}
+              </p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashMySpots')}</p>
             </div>
             <Car className="size-8 text-teal-600/60 dark:text-teal-400/60" />

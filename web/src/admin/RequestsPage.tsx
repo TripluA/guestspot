@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download } from 'lucide-react'
 import { pb } from '../lib/pb'
@@ -24,7 +24,7 @@ export default function RequestsPage() {
   const [busyId, setBusyId] = useState('')
   const toast = useToast()
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     try {
       const res = await pb.collection('requests').getFullList<GuestRequestRecord>({
         sort: '-createdAt',
@@ -35,11 +35,11 @@ export default function RequestsPage() {
     } catch (err) {
       setError(pbErrorMessage(err, t) || t('error'))
     }
-  }
+  }, [t])
 
   useEffect(() => {
     void reload()
-  }, [])
+  }, [reload])
 
   const filtered = useMemo(() => {
     if (!requests) return []
@@ -69,7 +69,19 @@ export default function RequestsPage() {
 
   function exportCSV() {
     downloadCSV(`guestspot-requests-${new Date().toISOString().slice(0, 10)}.csv`, [
-      ['Requester', 'Email', 'Building', 'From', 'To', 'Guests', 'Note', 'Status', 'Spot', 'Confirmer', 'Created'],
+      [
+        'Requester',
+        'Email',
+        'Building',
+        'From',
+        'To',
+        'Guests',
+        'Note',
+        'Status',
+        'Spot',
+        'Confirmer',
+        'Created',
+      ],
       ...allRequests.map((r) => [
         r.expand?.requester?.name ?? r.requester,
         r.expand?.requester?.email ?? '',
@@ -180,7 +192,11 @@ export default function RequestsPage() {
         </Select>
       </div>
 
-      {filtered.length === 0 && <Card><p className="py-6 text-center text-gray-400">{t('noData')}</p></Card>}
+      {filtered.length === 0 && (
+        <Card>
+          <p className="py-6 text-center text-gray-400">{t('noData')}</p>
+        </Card>
+      )}
 
       <div className="space-y-2">
         {filtered.map((r) => (
@@ -206,25 +222,47 @@ export default function RequestsPage() {
                   {t('reqCreated')} {fmtDT(r.createdAt)}
                   {r.expand?.confirmer?.name ? ` · ${t('owner')} ${r.expand.confirmer.name}` : ''}
                 </p>
-                {r.note && <p className="mt-1 text-sm italic text-gray-500 dark:text-gray-400">“{r.note}”</p>}
+                {r.note && (
+                  <p className="mt-1 text-sm italic text-gray-500 dark:text-gray-400">“{r.note}”</p>
+                )}
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 {r.status === 'pending' && (
-                  <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void cancelReq(r)}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={busyId === r.id}
+                    onClick={() => void cancelReq(r)}
+                  >
                     {t('reqCancel')}
                   </Button>
                 )}
                 {r.status === 'confirmed' && (
                   <>
-                    <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void completeReq(r)}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={busyId === r.id}
+                      onClick={() => void completeReq(r)}
+                    >
                       {t('reqComplete')}
                     </Button>
-                    <Button size="sm" variant="secondary" loading={busyId === r.id} onClick={() => void cancelReq(r)}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={busyId === r.id}
+                      onClick={() => void cancelReq(r)}
+                    >
                       {t('reqCancel')}
                     </Button>
                   </>
                 )}
-                <Button size="sm" variant="danger" loading={busyId === r.id} onClick={() => void deleteReq(r)}>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  loading={busyId === r.id}
+                  onClick={() => void deleteReq(r)}
+                >
                   {t('adminDelete')}
                 </Button>
               </div>

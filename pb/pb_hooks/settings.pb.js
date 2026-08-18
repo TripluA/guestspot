@@ -15,3 +15,10 @@ routerAdd("POST", "/api/guestspot/admin/settings", (e) => {
   const record = h.updateAdminSettings(e.app, e.auth, e.requestInfo().body)
   return e.json(200, { record: record })
 }, $apis.requireAuth("_superusers"))
+
+// Public settings endpoint — returns app-level flags the frontend needs
+// (e.g. whether email verification is required on registration).
+routerAdd("GET", "/api/guestspot/settings", (e) => {
+  const requireEmailVerification = ($os.getenv("REQUIRE_EMAIL_VERIFICATION") || "").toLowerCase() === "true"
+  return e.json(200, { requireEmailVerification })
+})

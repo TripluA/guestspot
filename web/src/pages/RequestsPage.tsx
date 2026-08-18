@@ -76,7 +76,7 @@ export default function RequestsPage() {
       setMySpots(spotsRes.sort((a, b) => cmpSpotNumber(a.number, b.number)))
       setConfirmedAll(confirmedRes)
     } catch (err) {
-      if ((err as any)?.status !== 0) {
+      if ((err as { status?: number })?.status !== 0) {
         throw err
       }
     } finally {
@@ -96,7 +96,7 @@ export default function RequestsPage() {
       setPage(res.page)
       setHasMore(res.page * res.perPage < res.totalItems)
     } catch (err) {
-      if ((err as any)?.status !== 0) throw err
+      if ((err as { status?: number })?.status !== 0) throw err
     }
   }, [page])
 
@@ -127,10 +127,7 @@ export default function RequestsPage() {
       return mySpots.filter((s) => {
         if (!s.enabled) return false
         const conflicted = confirmedAll.some(
-          (x) =>
-            x.spot === s.id &&
-            x.from < r.to &&
-            x.to > r.from,
+          (x) => x.spot === s.id && x.from < r.to && x.to > r.from,
         )
         return !conflicted
       })
@@ -163,7 +160,9 @@ export default function RequestsPage() {
           onClick={() => setTab('board')}
           className={cn(
             'rounded-md py-1.5 text-sm font-medium',
-            tab === 'board' ? 'bg-white shadow-sm dark:bg-gray-700' : 'text-gray-500 dark:text-gray-400',
+            tab === 'board'
+              ? 'bg-white shadow-sm dark:bg-gray-700'
+              : 'text-gray-500 dark:text-gray-400',
           )}
         >
           {t('reqBoard')}
@@ -173,7 +172,9 @@ export default function RequestsPage() {
           onClick={() => setTab('mine')}
           className={cn(
             'rounded-md py-1.5 text-sm font-medium',
-            tab === 'mine' ? 'bg-white shadow-sm dark:bg-gray-700' : 'text-gray-500 dark:text-gray-400',
+            tab === 'mine'
+              ? 'bg-white shadow-sm dark:bg-gray-700'
+              : 'text-gray-500 dark:text-gray-400',
           )}
         >
           {t('reqMine')}
@@ -193,7 +194,11 @@ export default function RequestsPage() {
               {t('reqForMe')}
             </label>
             <div className="flex items-center gap-2">
-              <Select className="w-28" value={buildingFilter} onChange={(e) => setBuildingFilter(e.target.value)}>
+              <Select
+                className="w-28"
+                value={buildingFilter}
+                onChange={(e) => setBuildingFilter(e.target.value)}
+              >
                 <option value="all">{t('reqBuildingAll')}</option>
                 {BUILDINGS.map((b) => (
                   <option key={b} value={b}>
@@ -207,7 +212,9 @@ export default function RequestsPage() {
               </span>
             </div>
           </div>
-          {shownBoard.length === 0 && <EmptyState title={forMe ? t('reqEmptyForMe') : t('reqEmptyBoard')} />}
+          {shownBoard.length === 0 && (
+            <EmptyState title={forMe ? t('reqEmptyForMe') : t('reqEmptyBoard')} />
+          )}
           {shownBoard.map((r) => {
             const available = offerableFor(r)
             return (
@@ -242,7 +249,11 @@ export default function RequestsPage() {
         </div>
       )}
 
-      <NewRequestModal open={showNew} onClose={() => setShowNew(false)} onDone={() => void refresh()} />
+      <NewRequestModal
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        onDone={() => void refresh()}
+      />
 
       <EditRequestModal
         request={editing}
@@ -353,7 +364,9 @@ function RequestCard({
             {t('reqCreated')} {fmtDT(r.createdAt)}
             {r.guests ? ` · ${r.guests} ${t('reqGuests').toLowerCase()}` : ''}
           </p>
-          {r.note && <p className="mt-1 text-sm italic text-gray-500 dark:text-gray-400">“{r.note}”</p>}
+          {r.note && (
+            <p className="mt-1 text-sm italic text-gray-500 dark:text-gray-400">“{r.note}”</p>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canOffer && onOffer && (
@@ -367,7 +380,12 @@ function RequestCard({
             </Button>
           )}
           {mine && r.status === 'confirmed' && (
-            <Button size="sm" variant="secondary" loading={contactLoading} onClick={() => void openContact()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={contactLoading}
+              onClick={() => void openContact()}
+            >
               {t('reqContactHost')}
             </Button>
           )}
@@ -377,7 +395,12 @@ function RequestCard({
             </Button>
           )}
           {mine && r.status === 'confirmed' && (
-            <Button size="sm" variant="secondary" loading={busy} onClick={() => void run('complete')}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={busy}
+              onClick={() => void run('complete')}
+            >
               {t('reqComplete')}
             </Button>
           )}
@@ -396,7 +419,10 @@ function RequestCard({
               <dt className="text-gray-500 dark:text-gray-400">{t('reqContactHostPhone')}</dt>
               <dd className="font-medium">
                 {contact.hostPhone ? (
-                  <a className="text-teal-700 hover:underline dark:text-teal-300" href={`tel:${contact.hostPhone}`}>
+                  <a
+                    className="text-teal-700 hover:underline dark:text-teal-300"
+                    href={`tel:${contact.hostPhone}`}
+                  >
                     {contact.hostPhone}
                   </a>
                 ) : (
@@ -484,7 +510,11 @@ function NewRequestModal({
           </Select>
         </Field>
         <Field label={t('reqNote')}>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Car plate, arrival time…" />
+          <Input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Car plate, arrival time…"
+          />
         </Field>
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
@@ -584,7 +614,11 @@ function EditRequestModal({
           </Select>
         </Field>
         <Field label={t('reqNote')}>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Car plate, arrival time…" />
+          <Input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Car plate, arrival time…"
+          />
         </Field>
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">

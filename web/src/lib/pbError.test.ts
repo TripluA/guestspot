@@ -20,7 +20,9 @@ describe('pbErrorMessage', () => {
 
   it('maps spot-number uniqueness to a friendly message', () => {
     const err = {
-      data: { data: { number: { code: 'validation_not_unique', message: 'Failed to create record.' } } },
+      data: {
+        data: { number: { code: 'validation_not_unique', message: 'Failed to create record.' } },
+      },
     }
     expect(pbErrorMessage(err, label)).toBe('L(adminSpotNumberExists)')
   })

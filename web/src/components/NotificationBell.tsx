@@ -115,7 +115,9 @@ export default function NotificationBell() {
             </div>
             <div className="max-h-80 overflow-y-auto">
               {items.length === 0 && (
-                <p className="px-4 py-6 text-center text-sm text-gray-400">{t('notificationsEmpty')}</p>
+                <p className="px-4 py-6 text-center text-sm text-gray-400">
+                  {t('notificationsEmpty')}
+                </p>
               )}
               {items.map((n) => (
                 <button
@@ -123,8 +125,13 @@ export default function NotificationBell() {
                   type="button"
                   onClick={() => {
                     if (!n.read) {
-                      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
-                      void pb.collection('notifications').update(n.id, { read: true }).catch(() => {})
+                      setItems((prev) =>
+                        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
+                      )
+                      void pb
+                        .collection('notifications')
+                        .update(n.id, { read: true })
+                        .catch(() => {})
                     }
                   }}
                   className={cn(
@@ -133,7 +140,9 @@ export default function NotificationBell() {
                   )}
                 >
                   <p className="text-sm text-gray-800 dark:text-gray-100">{messageFor(n, t)}</p>
-                  <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{fmtDT(n.createdAt)}</p>
+                  <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                    {fmtDT(n.createdAt)}
+                  </p>
                 </button>
               ))}
             </div>
